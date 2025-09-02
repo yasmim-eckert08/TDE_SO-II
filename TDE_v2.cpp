@@ -329,18 +329,31 @@ public:
         }
     }
 
-    void mostrarTabelaDiretorio() {
-        cout << "\nTabela de Diretório:\n";
-        cout << left << setw(15) << "Arquivo" << setw(15) << "Tamanho(bytes)" << "Blocos alocados\n";
-        cout << "---------------------------------------------------\n";
-        for (const auto& p : tabelaArquivos) {
-            cout << left << setw(15) << p.first << setw(15) << p.second.tamanhoBytes;
-            if (metodoAlocacao == 3)
-                cout << p.second.blocoIndice << " ";
-            for (int b : p.second.blocos) cout << b << " ";
-            cout << "\n";
+    void displayTabelaDiretorios() {
+    cout << "\nTabela de Diretórios:\n";
+    cout << left << setw(18) << "Nome do arquivo"
+         << setw(15) << "Bloco inicial"
+         << setw(18) << "Tamanho (blocos)"
+         << setw(20) << "Tamanho total (bytes)"
+         << setw(25) << "Fragmentação interna (bytes)"
+         << "\n---------------------------------------------------------------\n";
+
+    for (const auto& [nome, arq] : tabelaArquivos) {
+        int tamanhoTotalBytes = 0;
+        int fragmentacaoInterna = 0;
+        for (int b : arq.blocos) {
+            tamanhoTotalBytes += blocos[b].bytesUsados;
+            fragmentacaoInterna += (tamanhoBloco - blocos[b].bytesUsados);
         }
+        cout << left << setw(18) << nome
+             << setw(15) << arq.blocos.front()
+             << setw(18) << (int)arq.blocos.size()
+             << setw(20) << tamanhoTotalBytes
+             << setw(25) << fragmentacaoInterna
+             << "\n";
     }
+}
+
 };
 
 int main() {
@@ -371,7 +384,7 @@ int main() {
             case 2: disco.estenderArquivo(); break;
             case 3: disco.deletarArquivo(); break;
             case 4: disco.mostrarDisco(); break;
-            case 5: disco.mostrarTabelaDiretorio(); break;
+            case 5: disco.displayTabelaDiretorios(); break;
             case 6: cout << "Encerrando...\n"; return 0;
             default: cout << "Opção inválida.\n";
         }
