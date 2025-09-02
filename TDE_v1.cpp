@@ -368,6 +368,146 @@ void deleteArquivo(vector<int>& disk, unordered_map<string, File>& filesIndexado
     }
 }
 
+void estenderArquivoContiguo(vector<int>& disk, unordered_map<string, File>& filesContiguous) {
+    string fileName;
+    int adicional;
+
+    cout << "Digite o nome do arquivo a ser estendido: ";
+    cin >> fileName;
+
+    if (filesContiguous.find(fileName) == filesContiguous.end()) {
+        cout << "Erro: Arquivo não encontrado!" << endl;
+        return;
+    }
+
+    cout << "Digite o número de blocos a serem adicionados: ";
+    cin >> adicional;
+
+    File& file = filesContiguous[fileName];
+    int start = file.startBlock;
+    int end = start + file.size;
+
+    bool podeEstender = true;
+    if (end + adicional > disk.size()) {
+        podeEstender = false;
+    } else {
+        for (int i = end; i < end + adicional; ++i) {
+            if (disk[i] != -1) {
+                podeEstender = false;
+                break;
+            }
+        }
+    }
+
+    if (podeEstender) {
+        for (int i = end; i < end + adicional; ++i) {
+            disk[i] = start;
+        }
+        file.size += adicional;
+        tabelaDiretorio[fileName] = make_tuple(file.startBlock, file.size);
+        cout << "Arquivo estendido com sucesso!" << endl;
+        displayContiguo(disk, filesContiguous);
+    } else {
+        cout << "Erro: Não há espaço contíguo disponível para extensão!" << endl;
+    }
+}
+
+void estenderArquivoEncadeado(vector<int>& disk, unordered_map<string, File>& filesEncadeados) {
+    string fileName;
+    int adicional;
+
+    cout << "Digite o nome do arquivo a ser estendido: ";
+    cin >> fileName;
+
+    if (filesEncadeados.find(fileName) == filesEncadeados.end()) {
+        cout << "Erro: Arquivo não encontrado!" << endl;
+        return;
+    }
+
+    cout << "Digite o número de blocos a serem adicionados: ";
+    cin >> adicional;
+
+    File& file = filesEncadeados[fileName];
+
+    vector<int> freeBlocks;
+    for (size_t i = 0; i < disk.size(); ++i) {
+        if (disk[i] == -1) {
+            freeBlocks.push_back(i);
+        }
+    }
+
+    if (freeBlocks.size() < static_cast<size_t>(adicional)) {
+        cout << "Erro: Espaço insuficiente!" << endl;
+        return;
+    }
+
+    random_device rd;
+    mt19937 g(rd());
+    shuffle(freeBlocks.begin(), freeBlocks.end(), g);
+
+    int lastBlock = file.dataBlocks.back();
+    disk[lastBlock] = freeBlocks[0];
+
+    for (int i = 0; i < adicional; ++i) {
+        int current = freeBlocks[i];
+        file.dataBlocks.push_back(current);
+        if (i < adicional - 1) {
+            disk[current] = freeBlocks[i + 1];
+        } else {
+            disk[current] = -2; // fim
+        }
+    }
+
+    tabelaDiretorio[fileName] = make_tuple(file.startBlock, file.dataBlocks.size());
+    cout << "Arquivo estendido com sucesso!" << endl;
+    displayEncadeado(disk, filesEncadeados);
+}
+
+void estenderArquivoIndexado(vector<int>& disk, unordered_map<string, File>& filesIndexados) {
+    string fileName;
+    int adicional;
+
+    cout << "Digite o nome do arquivo a ser estendido: ";
+    cin >> fileName;
+
+    if (filesIndexados.find(fileName) == filesIndexados.end()) {
+        cout << "Erro: Arquivo não encontrado!" << endl;
+        return;
+    }
+
+    cout << "Digite o número de blocos a serem adicionados: ";
+    cin >> adicional;
+
+    File& file = filesIndexados[fileName];
+
+    vector<int> freeBlocks;
+    for (size_t i = 0; i < disk.size(); ++i) {
+        if (disk[i] == -1) {
+            freeBlocks.push_back(i);
+        }
+    }
+
+    if (freeBlocks.size() < static_cast<size_t>(adicional)) {
+        cout << "Erro: Espaço insuficiente!" << endl;
+        return;
+    }
+
+    random_device rd;
+    mt19937 g(rd());
+    shuffle(freeBlocks.begin(), freeBlocks.end(), g);
+
+    for (int i = 0; i < adicional; ++i) {
+        int block = freeBlocks[i];
+        disk[block] = file.indexBlock;
+        file.dataBlocks.push_back(block);
+    }
+
+    file.size = file.dataBlocks.size();
+    tabelaDiretorio[fileName] = make_tuple(file.indexBlock, file.size);
+    cout << "Arquivo estendido com sucesso!" << endl;
+    displayIndexado(disk, filesIndexados);
+}
+
 int main() {
 
     int diskSize;
@@ -398,7 +538,8 @@ int main() {
         cout << "2. Deletar arquivo\n";
         cout << "3. Mostrar disco\n";
         cout << "4. Mostrar tabela de diretório\n";
-        cout << "5. Sair\n";
+        cout << "5. Estender arquivo\n";
+        cout << "6. Sair do programa\n";
         int opcao;
         cin >> opcao;
 
@@ -428,6 +569,15 @@ int main() {
               displayTabelaDiretorio();
                 break;
             case 5:
+                if (tipoAlocacao == 1) {
+                    estenderArquivoContiguo(disk, filesContiguous);
+                } else if (tipoAlocacao == 2) {
+                    estenderArquivoEncadeado(disk, filesEncadeados);
+                } else if (tipoAlocacao == 3) {
+                    estenderArquivoIndexado(disk, filesIndexados);
+                }
+                break;
+            case 6:
                 cout << "Encerrar programa\n";
                 return 0;
             default:
