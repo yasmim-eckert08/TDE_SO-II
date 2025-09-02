@@ -228,7 +228,7 @@ void criarArquivoEncadeado() {
         return;
     }
 
-    // Buscar blocos livres aleatoriamente (simplificado: na ordem)
+    // Buscar blocos livres aleatoriamente (não precisam ser adjacentes)
     vector<int> blocosLivres;
     for (int i = 0; i < (int)blocos.size(); i++)
         if (blocos[i].livre)
@@ -272,7 +272,7 @@ void criarArquivoIndexado() {
 
     int blocosNecessarios = (tamanhoBytes + tamanhoBloco - 1) / tamanhoBloco;
 
-    // Para indexada, precisamos de blocosNecessarios + 1 bloco para índice
+    // Indexada -> blocosNecessarios + 1 bloco para índice
     if (blocosNecessarios + 1 > (int)blocos.size()) {
         cout << "Erro: Arquivo maior que o disco!\n";
         return;
@@ -321,7 +321,6 @@ void deletarArquivo() {
         cout << "Erro: Arquivo não encontrado!\n";
         return;
     }
-
     Arquivo arq = tabelaArquivos[nomeArquivo];
 
     for (int b : arq.blocos) {
@@ -339,11 +338,11 @@ void deletarArquivo() {
     }
 
     tabelaArquivos.erase(nomeArquivo);
-    cout << "Arquivo '" << nomeArquivo << "' deletado com sucesso.\n";
+    cout << "Arquivo '" << nomeArquivo << "' deletado com sucesso!\n";
 }
 
 int main() {
-    cout << "Escolha o tamanho do disco em blocos (sugestão: 64, 512): ";
+    cout << "Escolha o tamanho do disco em bytes (bloco com 8 bytes): 32, 64, 512): ";
     int tamanhoDisco;
     cin >> tamanhoDisco;
 
