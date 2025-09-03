@@ -37,6 +37,7 @@ unordered_map<string, tuple<int, int>> tabelaDiretorio;
 // map para armazenar tamanho real do arquivo em bytes
 unordered_map<string, int> fileSizesBytes;
 
+// separando cada alocação em funções diferentes
 void displayContiguo(const vector<int>& disk, const unordered_map<string, File>& files) {
     cout << "Memória Contígua:" << endl;
 
@@ -58,7 +59,6 @@ void displayContiguo(const vector<int>& disk, const unordered_map<string, File>&
             const File& file = it->second;
 
             int bytesUsed = tamanhoBloco;
-            // último bloco do arquivo pode ter menos bytes
             auto itSizes = fileSizesBytes.find(file.name);
             if (itSizes != fileSizesBytes.end()) {
                 int totalBytes = itSizes->second;
@@ -67,7 +67,7 @@ void displayContiguo(const vector<int>& disk, const unordered_map<string, File>&
                     int bytesBefore = (file.size - 1) * tamanhoBloco;
                     bytesUsed = totalBytes - bytesBefore;
                     if (bytesUsed < 0) bytesUsed = 0;
-                    if (bytesUsed > tamanhoBloco) bytesUsed = blockSize;
+                    if (bytesUsed > tamanhoBloco) bytesUsed = tamanhoBloco;
                 }
             }
 
