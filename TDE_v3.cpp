@@ -1,129 +1,94 @@
-
 #include <iostream>
 #include <vector>
 #include <unordered_map>
 #include <string>
 #include <algorithm>
 #include <iomanip>
-
 using namespace std;
 
 const int tamanhoBloco = 8; // bytes fixos por bloco
 
-struct Bloco {
-    bool livre = true;
-    string arquivo = "";
-    int bytesUsados = 0; // quantos bytes efetivamente usados nesse bloco
-    int proximo = -1;    // para alocação encadeada: índice do próximo bloco, -1 se nenhum
+// juntando struct Arquivo com struct Bloco em uma só struct
+struct File {
+    int indexBlock = -1;
+    int startBlock = -1;
+    vector<int> dataBlocks;
+    int size = 0;
+    string name;
+    string color;
+    int fragmentacao = 0;
 };
 
-struct Arquivo {
-    vector<int> blocos; // índices dos blocos alocados
-    int blocoIndice = -1; // para alocação indexada (i-node)
-};
+string getFileColor(int fileID) {
+    static const vector<string> colors = {
+        "\033[95m", // rosa
+        "\033[32m", // verde
+        "\033[34m", // azul
+        "\033[31m", // vermelho
+        "\033[36m", // ciano
+        "\033[33m", // amarelo
+        "\033[35m", // magenta
+    };
+    return colors[fileID % colors.size()];
+}
 
-vector<Bloco> blocos;
-unordered_map<string, Arquivo> tabelaArquivos;
-int metodoAlocacao = 0;
+unordered_map<string, tuple<int, int>> tabelaDiretorio;
 
-void mostrarDisco() {
-    cout << "\nDisco - Tamanho do bloco fixo: " << tamanhoBloco << " bytes\n";
+// map para armazenar tamanho real do arquivo em bytes
+unordered_map<string, int> fileSizesBytes;
 
-    if (metodoAlocacao == 1) {
-        // contígua
-        for (int i = 0; i < (int)blocos.size(); i++) {
-            cout << "[" << setw(2) << i << "] ";
-            if (blocos[i].livre)
-                cout << "░ Livre\n";
-            else {
-                cout << "█ " << blocos[i].arquivo;
-                if (tabelaArquivos.count(blocos[i].arquivo)) {
-                    const auto& arq = tabelaArquivos[blocos[i].arquivo];
-                    if (i == arq.blocos.front()) cout << " → INÍCIO";
-                    if (i == arq.blocos.back()) cout << " → FIM";
-                    if (i == arq.blocos.back()) {
-                        int frag = tamanhoBloco - blocos[i].bytesUsados;
-                        cout << " (bytes usados: " << blocos[i].bytesUsados
-                             << ", fragmentação interna: " << frag << ")";
-                    } else {
-                        cout << " (bytes usados: " << blocos[i].bytesUsados << ")";
-                    }
-                }
-                cout << "\n";
+void displayContiguo(const vector<int>& disk, const unordered_map<string, File>& files) {
+    cout << "Memória Contígua:" << endl;
+
+    int totalBytesLivres = 0;
+
+    for (size_t i = 0; i < disk.size(); ++i) {
+        if (disk[i] == -1) {
+            cout << "[" << i << "] ░" << endl;
+            totalBytesLivres += tamanhoBloco;
+        } else {
+            int startBlock = disk[i];
+            auto it = find_if(files.begin(), files.end(), [startBlock](const auto& p) {
+                return p.second.startBlock == startBlock;
+            });
+            if (it == files.end()) {
+                cout << "[" << i << "] ?" << endl;
+                continue;
             }
-        }
-    } else if (metodoAlocacao == 2) {
-        // encadeada com ponteiros corretos
-        for (int i = 0; i < (int)blocos.size(); i++) {
-            cout << "[" << setw(2) << i << "] ";
-            if (blocos[i].livre) {
-                cout << "░ Livre\n";
-            } else {
-                cout << "█ " << blocos[i].arquivo << " → ";
-                if (tabelaArquivos.count(blocos[i].arquivo)) {
-                    const auto& arq = tabelaArquivos[blocos[i].arquivo];
-                    auto& listaBlocos = arq.blocos;
+            const File& file = it->second;
 
-                    auto it = find(listaBlocos.begin(), listaBlocos.end(), i);
-                    if (it != listaBlocos.end()) {
-                        if (next(it) != listaBlocos.end()) {
-                            cout << *next(it);
-                        } else {
-                            cout << "FIM";
-                        }
-                    } else {
-                        cout << "???"; // bloco não encontrado
-                    }
-                } else {
-                    cout << blocos[i].proximo;
+            int bytesUsed = tamanhoBloco;
+            // último bloco do arquivo pode ter menos bytes
+            auto itSizes = fileSizesBytes.find(file.name);
+            if (itSizes != fileSizesBytes.end()) {
+                int totalBytes = itSizes->second;
+                int lastBlockIndex = file.startBlock + file.size - 1;
+                if (static_cast<int>(i) == lastBlockIndex) {
+                    int bytesBefore = (file.size - 1) * tamanhoBloco;
+                    bytesUsed = totalBytes - bytesBefore;
+                    if (bytesUsed < 0) bytesUsed = 0;
+                    if (bytesUsed > tamanhoBloco) bytesUsed = blockSize;
                 }
+            }
 
-                if (tabelaArquivos.count(blocos[i].arquivo)) {
-                    const auto& arq = tabelaArquivos[blocos[i].arquivo];
-                    if (i == arq.blocos.back()) {
-                        int frag = tamanhoBloco - blocos[i].bytesUsados;
-                        cout << " (bytes usados: " << blocos[i].bytesUsados
-                             << ", fragmentação interna: " << frag << ")";
-                    } else {
-                        cout << " (bytes usados: " << blocos[i].bytesUsados << ")";
-                    }
-                } else {
-                    cout << " (bytes usados: " << blocos[i].bytesUsados << ")";
-                }
-                cout << "\n";
-            }
-        }
-    } else {
-        // indexada (i-node)
-        for (int i = 0; i < (int)blocos.size(); i++) {
-            cout << "[" << setw(2) << i << "] ";
-            if (blocos[i].livre)
-                cout << "░ Livre\n";
-            else {
-                bool isBlocoIndice = false;
-                string arquivo = blocos[i].arquivo;
-                if (tabelaArquivos.count(arquivo) && tabelaArquivos[arquivo].blocoIndice == i) {
-                    isBlocoIndice = true;
-                    cout << "█ " << arquivo << " → BLOCO ÍNDICE (Aponta para blocos: ";
-                    for (int b : tabelaArquivos[arquivo].blocos) cout << b << " ";
-                    cout << ")";
-                } else {
-                    cout << "█ " << arquivo;
-                }
-                if (tabelaArquivos.count(arquivo)) {
-                    const auto& arq = tabelaArquivos[arquivo];
-                    if (i == arq.blocos.back()) {
-                        int frag = tamanhoBloco - blocos[i].bytesUsados;
-                        cout << " (bytes usados: " << blocos[i].bytesUsados
-                             << ", fragmentação interna: " << frag << ")";
-                    } else {
-                        cout << " (bytes usados: " << blocos[i].bytesUsados << ")";
-                    }
-                }
-                cout << "\n";
-            }
+            cout << "[" << i << "] " << file.color;
+            for (int b = 0; b < bytesUsed; ++b) cout << "█";
+            for (int b = bytesUsed; b < tamanhoBloco; ++b) cout << "░";
+            cout << "\033[0m";
+
+            if (static_cast<int>(i) == file.startBlock)
+                cout << " → INICIO do " << file.name << endl;
+            else if (static_cast<int>(i) == file.startBlock + file.size - 1)
+                cout << " → FIM do " << file.name << endl;
+            else
+                cout << " [" << file.name << "]" << endl;
+
+            totalBytesLivres += (tamanhoBloco - bytesUsed);
         }
     }
+
+    cout << "---------------------------------------------------------" << endl;
+    cout << "Total de bytes livres no disco: " << totalBytesLivres << " bytes" << endl;
 }
 
 void displayTabelaDiretorios() {
