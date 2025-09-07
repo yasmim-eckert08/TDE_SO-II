@@ -90,6 +90,94 @@ void displayContiguo(const vector<int>& disk, const unordered_map<string, File>&
     cout << "---------------------------------------------------------" << endl;
     cout << "Total de bytes livres no disco: " << totalBytesLivres << " bytes" << endl;
 }
+void displayEncadeado(const vector<int> &disk, const unordered_map<string, File> &files)
+{
+    cout << "Memória Encadeada:" << endl;
+    unordered_map<int, tuple<string, int, int, int>> blockInfo;
+    for (const auto &[nome, file] : files)
+    {
+        if (file.startBlock < 0 || file.startBlock >= static_cast<int>(disk.size()))
+            continue;
+        vector<int> chain;
+        int cur = file.startBlock;
+        int safety = 0;
+        const int MAX_SAFETY = static_cast<int>(disk.size()) * 2;
+        while (cur >= 0 && cur < static_cast<int>(disk.size()) && safety < MAX_SAFETY)
+        {
+            chain.push_back(cur);
+            int nxt = disk[cur];
+            if (nxt == -2)
+                break;
+            cur = nxt;
+            ++safety;
+        }
+        if (chain.empty())
+            continue;
+        int fileBytes = 0;
+        auto itSizes = fileSizesBytes.find(nome);
+        if (itSizes != fileSizesBytes.end())
+            fileBytes = itSizes->second;
+        int chainSize = static_cast<int>(chain.size());
+        for (int idx = 0; idx < chainSize; ++idx)
+        {
+            int bytesUsed = tamanhoBloco;
+            if (idx == chainSize - 1)
+            {
+                int bytesBefore = (chainSize - 1) * tamanhoBloco;
+                bytesUsed = fileBytes - bytesBefore;
+                if (bytesUsed < 0)
+                    bytesUsed = 0;
+                if (bytesUsed > tamanhoBloco)
+                    bytesUsed = tamanhoBloco;
+            }
+            blockInfo[chain[idx]] = make_tuple(nome, idx, chainSize, bytesUsed);
+        }
+    }
+    int totalBytesLivres = 0;
+    for (size_t i = 0; i < disk.size(); ++i)
+    {
+        auto itInfo = blockInfo.find(static_cast<int>(i));
+        if (itInfo == blockInfo.end())
+        {
+            if (disk[i] == -1)
+            {
+                cout << "[" << i << "] ░" << endl;
+                totalBytesLivres += tamanhoBloco;
+            }
+            else
+            {
+                cout << "[" << i << "] █ → ?" << endl;
+            }
+            continue;
+        }
+        auto [nome, pos, chainSize, bytesUsed] = itInfo->second;
+        const File &file = files.at(nome);
+        cout << "[" << i << "] " << file.color;
+        for (int b = 0; b < bytesUsed; ++b)
+            cout << "█";
+        for (int b = bytesUsed; b < tamanhoBloco; ++b)
+            cout << "░";
+        cout << "\033[0m";
+        int prox = disk[i];
+        if (pos == 0)
+        {
+            if (prox == -2)
+                cout << " → INICIO → FIM do " << file.name << endl;
+            else
+                cout << " → INICIO do " << file.name << " → [" << prox << "]" << endl;
+        }
+        else
+        {
+            if (prox == -2)
+                cout << " → FIM do " << file.name << endl;
+            else
+                cout << " → [" << prox << "]" << endl;
+        }
+        totalBytesLivres += (tamanhoBloco - bytesUsed);
+    }
+    cout << "---------------------------------------------------------" << endl;
+    cout << "Total de bytes livres no disco: " << totalBytesLivres << " bytes" << endl;
+}
 
 void displayTabelaDiretorios() {
     cout << "\nTabela de Diretórios:\n";
