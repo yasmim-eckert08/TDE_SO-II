@@ -454,6 +454,163 @@ void estenderArquivoIndexado(
     displayIndexado(disk, filesIndexados);
 }
 
+void simularLeituraContiguo(
+    const unordered_map<string, File> &filesContiguous,
+    const unordered_map<string, int> &fileSizesBytes,
+    int blockSize,
+    int t_sequencial = 1,
+    int t_aleatorio = 5)
+{
+    string fileName;
+    cout << "Digite o nome do arquivo para simular a leitura: ";
+    cin >> fileName;
+    if (filesContiguous.find(fileName) == filesContiguous.end())
+    {
+        cout << "Arquivo não encontrado." << endl;
+        return;
+    }
+    const File &file = filesContiguous.at(fileName);
+    vector<int> blocosArquivo;
+    for (int i = file.startBlock; i < file.startBlock + file.size; ++i)
+    {
+        blocosArquivo.push_back(i);
+    }
+    int tempoSequencial = (int)blocosArquivo.size() * t_sequencial;
+    vector<int> blocosAleatorios = blocosArquivo;
+    random_device rd;
+    mt19937 g(rd());
+    shuffle(blocosAleatorios.begin(), blocosAleatorios.end(), g);
+    int tempoAleatorio = (int)blocosAleatorios.size() * t_aleatorio;
+    int fragmentacao = (file.size * blockSize) - fileSizesBytes.at(fileName);
+    cout << "\nSimulação de leitura do arquivo '" << fileName << "' (Contígua):\n";
+    cout << "Fragmentação interna: " << fragmentacao << " bytes\n";
+    cout << "Tempo leitura sequencial: " << tempoSequencial << " ms\n";
+    cout << "Tempo leitura aleatória: " << tempoAleatorio << " ms\n";
+    cout << "Ordem sequencial dos blocos: [";
+    for (size_t i = 0; i < blocosArquivo.size(); ++i)
+    {
+        cout << blocosArquivo[i];
+        if (i < blocosArquivo.size() - 1)
+            cout << ", ";
+    }
+    cout << "]\n";
+    cout << "Ordem aleatória dos blocos: [";
+    for (size_t i = 0; i < blocosAleatorios.size(); ++i)
+    {
+        cout << blocosAleatorios[i];
+        if (i < blocosAleatorios.size() - 1)
+            cout << ", ";
+    }
+    cout << "]\n";
+}
+void simularLeituraEncadeado(
+    const vector<int> &disk,
+    const unordered_map<string, File> &filesEncadeados,
+    const unordered_map<string, int> &fileSizesBytes,
+    int blockSize,
+    int t_sequencial = 1,
+    int t_aleatorio = 5)
+{
+    string fileName;
+    cout << "Digite o nome do arquivo para simular a leitura: ";
+    cin >> fileName;
+    if (filesEncadeados.find(fileName) == filesEncadeados.end())
+    {
+        cout << "Arquivo não encontrado." << endl;
+        return;
+    }
+    const File &file = filesEncadeados.at(fileName);
+    vector<int> blocosArquivo;
+    int blocoAtual = file.dataBlocks.empty() ? -1 : file.dataBlocks.front();
+    while (blocoAtual != -2 && blocoAtual != -1)
+    {
+        blocosArquivo.push_back(blocoAtual);
+        blocoAtual = disk[blocoAtual];
+    }
+    if (blocosArquivo.empty())
+    {
+        cout << "Erro: Arquivo vazio ou lista de blocos inválida!" << endl;
+        return;
+    }
+    int tempoSequencial = (int)blocosArquivo.size() * t_sequencial;
+    vector<int> blocosAleatorios = blocosArquivo;
+    random_device rd;
+    mt19937 g(rd());
+    shuffle(blocosAleatorios.begin(), blocosAleatorios.end(), g);
+    int tempoAleatorio = (int)blocosAleatorios.size() * t_aleatorio;
+    int fragmentacao = (file.size * blockSize) - fileSizesBytes.at(fileName);
+    cout << "\nSimulação de leitura do arquivo '" << fileName << "' (Encadeada):\n";
+    cout << "Fragmentação interna: " << fragmentacao << " bytes\n";
+    cout << "Tempo leitura sequencial: " << tempoSequencial << " ms\n";
+    cout << "Tempo leitura aleatória: " << tempoAleatorio << " ms\n";
+    cout << "Ordem sequencial dos blocos: [";
+    for (size_t i = 0; i < blocosArquivo.size(); ++i)
+    {
+        cout << blocosArquivo[i];
+        if (i < blocosArquivo.size() - 1)
+            cout << ", ";
+    }
+    cout << "]\n";
+    cout << "Ordem aleatória dos blocos: [";
+    for (size_t i = 0; i < blocosAleatorios.size(); ++i)
+    {
+        cout << blocosAleatorios[i];
+        if (i < blocosAleatorios.size() - 1)
+            cout << ", ";
+    }
+    cout << "]\n";
+}
+void simularLeituraIndexado(
+    const unordered_map<string, File> &filesIndexados,
+    const unordered_map<string, int> &fileSizesBytes,
+    int blockSize,
+    int t_sequencial = 1,
+    int t_aleatorio = 5)
+{
+    string fileName;
+    cout << "Digite o nome do arquivo para simular a leitura: ";
+    cin >> fileName;
+    if (filesIndexados.find(fileName) == filesIndexados.end())
+    {
+        cout << "Arquivo não encontrado." << endl;
+        return;
+    }
+    const File &file = filesIndexados.at(fileName);
+    const vector<int> &blocosArquivo = file.dataBlocks;
+    if (blocosArquivo.empty())
+    {
+        cout << "Arquivo vazio." << endl;
+        return;
+    }
+    int tempoSequencial = (int)blocosArquivo.size() * t_sequencial;
+    vector<int> blocosAleatorios = blocosArquivo;
+    random_device rd;
+    mt19937 g(rd());
+    shuffle(blocosAleatorios.begin(), blocosAleatorios.end(), g);
+    int tempoAleatorio = (int)blocosAleatorios.size() * t_aleatorio;
+    int fragmentacao = (file.size * blockSize) - fileSizesBytes.at(fileName);
+    cout << "\nSimulação de leitura do arquivo '" << fileName << "' (Indexada):\n";
+    cout << "Fragmentação interna: " << fragmentacao << " bytes\n";
+    cout << "Tempo leitura sequencial: " << tempoSequencial << " ms\n";
+    cout << "Tempo leitura aleatória: " << tempoAleatorio << " ms\n";
+    cout << "Ordem sequencial dos blocos: [";
+    for (size_t i = 0; i < blocosArquivo.size(); ++i)
+    {
+        cout << blocosArquivo[i];
+        if (i < blocosArquivo.size() - 1)
+            cout << ", ";
+    }
+    cout << "]\n";
+    cout << "Ordem aleatória dos blocos: [";
+    for (size_t i = 0; i < blocosAleatorios.size(); ++i)
+    {
+        cout << blocosAleatorios[i];
+        if (i < blocosAleatorios.size() - 1)
+            cout << ", ";
+    }
+    cout << "]\n";
+}
+
 void displayDiretorioContiguo(const unordered_map<string, File> &files)
 {
     cout << "\nTabela de Diretório - Alocação Contígua:\n";
@@ -805,7 +962,9 @@ int main()
         cout << "2. Deletar arquivo\n";
         cout << "3. Mostrar disco\n";
         cout << "4. Mostrar tabela de diretório\n";
-        cout << "5. Encerrar o programa\n";
+        cout << "5. Estender arquivo\n";
+        cout << "6. Simular leitura do arquivo (com tempo de acesso)\n";
+        cout << "7. Encerrar o programa\n";
         int opcao;
         cin >> opcao;
         switch (opcao)
@@ -855,7 +1014,7 @@ int main()
                 displayDiretorioIndexado(filesIndexados);
             }
             break;
-            cout << "5. Estender arquivo\n";
+
         case 5:
             if (tipoAlocacao == 1)
             {
@@ -873,6 +1032,25 @@ int main()
                                         tabelaDiretorio);
             }
             break;
+
+        case 6:
+            if (tipoAlocacao == 1)
+            {
+                simularLeituraContiguo(filesContiguous, fileSizesBytes, tamanhoBloco);
+            }
+            else if (tipoAlocacao == 2)
+            {
+                simularLeituraEncadeado(disk, filesEncadeados, fileSizesBytes,
+                                        tamanhoBloco);
+            }
+            else if (tipoAlocacao == 3)
+            {
+                simularLeituraIndexado(filesIndexados, fileSizesBytes, tamanhoBloco);
+            }
+            break;
+        case 7:
+           cout << "Encerrando o programa..." << endl;
+            return 0;
         default:
             cout << "Opção inválida! Tente novamente!" << endl;
         }
