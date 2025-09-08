@@ -4,6 +4,7 @@
 #include <string>
 #include <algorithm>
 #include <iomanip>
+#include <random>
 using namespace std;
 
 const int tamanhoBloco = 8; // bytes fixos por bloco
@@ -284,165 +285,178 @@ void displayTabelaDiretorios() {
     }
 }
 
-void criarArquivoContiguo() {
-    string nomeArquivo;
+void createArquivoContiguo(vector<int> &disk, unordered_map<string, File> &files, int &fileID)
+{
+    string fileName;
     int tamanhoBytes;
-
     cout << "Digite o nome do arquivo: ";
-    cin >> nomeArquivo;
-
-    if (tabelaArquivos.count(nomeArquivo)) {
-        cout << "Erro: Arquivo já existe!\n";
+    cin >> fileName;
+    if (files.find(fileName) != files.end())
+    {
+        cout << "Erro: Arquivo já existe!" << endl;
         return;
     }
-
-    cout << "Digite o tamanho do arquivo (em bytes): ";
+    cout << "Digite o tamanho do arquivo em bytes: ";
     cin >> tamanhoBytes;
-
-    int blocosNecessarios = (tamanhoBytes + tamanhoBloco - 1) / tamanhoBloco;
-
-    if (blocosNecessarios > (int)blocos.size()) {
-        cout << "Erro: Arquivo maior que o disco!\n";
+    int tamanhoBlocos = (tamanhoBytes + tamanhoBloco - 1) / tamanhoBloco;
+    if (tamanhoBlocos > static_cast<int>(disk.size()))
+    {
+        cout << "Erro: Tamanho do arquivo maior que o tamanho do disco!" << endl;
         return;
     }
-
-    // Buscar espaço contíguo suficiente
-    int inicio = -1;
-    int count = 0;
-    for (int i = 0; i < (int)blocos.size(); i++) {
-        if (blocos[i].livre) {
-            if (inicio == -1) inicio = i;
-            count++;
-            if (count == blocosNecessarios) break;
-        } else {
-            inicio = -1;
-            count = 0;
+    bool allocated = false;
+    for (int i = 0; i <= static_cast<int>(disk.size()) - tamanhoBlocos; ++i)
+    {
+        bool canAllocate = true;
+        for (int j = 0; j < tamanhoBlocos; ++j)
+        {
+            if (disk[i + j] != -1)
+            {
+                canAllocate = false;
+                break;
+            }
+        }
+        if (canAllocate)
+        {
+            File newFile;
+            newFile.startBlock = i;
+            newFile.size = tamanhoBlocos;
+            newFile.name = fileName;
+            newFile.color = getFileColor(fileID++);
+            for (int j = 0; j < tamanhoBlocos; ++j)
+            {
+                disk[i + j] = i;
+            }
+            files[fileName] = newFile;
+            tabelaDiretorio[fileName] = make_tuple(i, tamanhoBlocos);
+            fileSizesBytes[fileName] = tamanhoBytes;
+            cout << "Arquivo criado com sucesso!" << endl;
+            displayContiguo(disk, files);
+            allocated = true;
+            break;
         }
     }
-
-    if (count < blocosNecessarios) {
-        cout << "Erro: Espaço contíguo insuficiente!\n";
-        return;
+    if (!allocated)
+    {
+        cout << "Erro: Espaço insuficiente no disco!" << endl;
     }
-
-    // Alocar blocos
-    Arquivo arq;
-    for (int i = inicio; i < inicio + blocosNecessarios; i++) {
-        blocos[i].livre = false;
-        blocos[i].arquivo = nomeArquivo;
-        blocos[i].bytesUsados = (i == inicio + blocosNecessarios - 1) ? (tamanhoBytes % tamanhoBloco) : tamanhoBloco;
-        if (blocos[i].bytesUsados == 0) blocos[i].bytesUsados = tamanhoBloco;
-        arq.blocos.push_back(i);
-    }
-
-    tabelaArquivos[nomeArquivo] = arq;
-    cout << "Arquivo '" << nomeArquivo << "' criado com sucesso.\n";
 }
 
-void criarArquivoEncadeado() {
-    string nomeArquivo;
+void createArquivoEncadeado(vector<int> &disk, unordered_map<string, File> &files, int &fileID)
+{
+    string fileName;
     int tamanhoBytes;
-
     cout << "Digite o nome do arquivo: ";
-    cin >> nomeArquivo;
-
-    if (tabelaArquivos.count(nomeArquivo)) {
-        cout << "Erro: Arquivo já existe!\n";
+    cin >> fileName;
+    if (files.find(fileName) != files.end())
+    {
+        cout << "Erro: Arquivo já existe!" << endl;
         return;
     }
-
-    cout << "Digite o tamanho do arquivo (em bytes): ";
+    cout << "Digite o tamanho do arquivo em bytes: ";
     cin >> tamanhoBytes;
-
-    int blocosNecessarios = (tamanhoBytes + tamanhoBloco - 1) / tamanhoBloco;
-
-    if (blocosNecessarios > (int)blocos.size()) {
-        cout << "Erro: Arquivo maior que o disco!\n";
+    int tamanhoBlocos = (tamanhoBytes + tamanhoBloco - 1) / tamanhoBloco;
+    if (tamanhoBlocos > static_cast<int>(disk.size()))
+    {
+        cout << "Erro: Tamanho do arquivo maior que o tamanho do disco!" << endl;
         return;
     }
-
-    // Buscar blocos livres aleatoriamente (não precisam ser adjacentes)
-    vector<int> blocosLivres;
-    for (int i = 0; i < (int)blocos.size(); i++)
-        if (blocos[i].livre)
-            blocosLivres.push_back(i);
-
-    if ((int)blocosLivres.size() < blocosNecessarios) {
-        cout << "Erro: Espaço insuficiente!\n";
+    vector<int> freeBlocks;
+    for (size_t i = 0; i < disk.size(); ++i)
+    {
+        if (disk[i] == -1)
+        {
+            freeBlocks.push_back(i);
+        }
+    }
+    if (freeBlocks.size() < static_cast<size_t>(tamanhoBlocos))
+    {
+        cout << "Erro: Espaço insuficiente no disco!" << endl;
         return;
     }
-
-    Arquivo arq;
-    // Alocar blocos e setar ponteiros
-    for (int i = 0; i < blocosNecessarios; i++) {
-        int b = blocosLivres[i];
-        blocos[b].livre = false;
-        blocos[b].arquivo = nomeArquivo;
-        blocos[b].bytesUsados = (i == blocosNecessarios - 1) ? (tamanhoBytes % tamanhoBloco) : tamanhoBloco;
-        if (blocos[b].bytesUsados == 0) blocos[b].bytesUsados = tamanhoBloco;
-        blocos[b].proximo = (i == blocosNecessarios - 1) ? -1 : blocosLivres[i + 1];
-        arq.blocos.push_back(b);
+    random_device rd;
+    mt19937 g(rd());
+    shuffle(freeBlocks.begin(), freeBlocks.end(), g);
+    int prevBlock = -1;
+    vector<int> dataBlocks;
+    for (int i = 0; i < tamanhoBlocos; ++i)
+    {
+        int currentBlock = freeBlocks[i];
+        dataBlocks.push_back(currentBlock);
+        if (prevBlock != -1)
+        {
+            disk[prevBlock] = currentBlock;
+        }
+        prevBlock = currentBlock;
     }
-
-    tabelaArquivos[nomeArquivo] = arq;
-    cout << "Arquivo '" << nomeArquivo << "' criado com sucesso.\n";
+    disk[prevBlock] = -2;
+    string color = getFileColor(fileID++);
+    File newFile;
+    newFile.startBlock = dataBlocks[0];
+    newFile.dataBlocks = dataBlocks;
+    newFile.size = tamanhoBlocos;
+    newFile.name = fileName;
+    newFile.color = color;
+    tabelaDiretorio[fileName] = make_tuple(dataBlocks[0], tamanhoBlocos);
+    fileSizesBytes[fileName] = tamanhoBytes;
+    files[fileName] = newFile;
+    cout << "Arquivo criado com sucesso!" << endl;
+    displayEncadeado(disk, files);
 }
 
-void criarArquivoIndexado() {
-    string nomeArquivo;
+void createArquivoIndexado(vector<int> &disk, unordered_map<string, File> &files, int &fileID)
+{
+    string fileName;
     int tamanhoBytes;
-
     cout << "Digite o nome do arquivo: ";
-    cin >> nomeArquivo;
-
-    if (tabelaArquivos.count(nomeArquivo)) {
-        cout << "Erro: Arquivo já existe!\n";
+    cin >> fileName;
+    if (files.find(fileName) != files.end())
+    {
+        cout << "Erro: Arquivo já existe!" << endl;
         return;
     }
-
-    cout << "Digite o tamanho do arquivo (em bytes): ";
+    cout << "Digite o tamanho do arquivo em bytes: ";
     cin >> tamanhoBytes;
-
-    int blocosNecessarios = (tamanhoBytes + tamanhoBloco - 1) / tamanhoBloco;
-
-    // Indexada -> blocosNecessarios + 1 bloco para índice
-    if (blocosNecessarios + 1 > (int)blocos.size()) {
-        cout << "Erro: Arquivo maior que o disco!\n";
+    int tamanhoBlocos = (tamanhoBytes + tamanhoBloco - 1) / tamanhoBloco;
+    if (tamanhoBlocos > static_cast<int>(disk.size()))
+    {
+        cout << "Erro: Tamanho do arquivo maior que o tamanho do disco!" << endl;
         return;
     }
-
-    // Buscar blocos livres
-    vector<int> blocosLivres;
-    for (int i = 0; i < (int)blocos.size(); i++)
-        if (blocos[i].livre)
-            blocosLivres.push_back(i);
-
-    if ((int)blocosLivres.size() < blocosNecessarios + 1) {
-        cout << "Erro: Espaço insuficiente!\n";
+    vector<int> freeBlocks;
+    for (size_t i = 0; i < disk.size(); ++i)
+    {
+        if (disk[i] == -1)
+        {
+            freeBlocks.push_back(i);
+        }
+    }
+    if (freeBlocks.size() < static_cast<size_t>(tamanhoBlocos + 1))
+    {
+        cout << "Erro: Espaço insuficiente no disco!" << endl;
         return;
     }
-
-    Arquivo arq;
-    arq.blocoIndice = blocosLivres.back();
-    blocosLivres.pop_back();
-
-    blocos[arq.blocoIndice].livre = false;
-    blocos[arq.blocoIndice].arquivo = nomeArquivo;
-    blocos[arq.blocoIndice].bytesUsados = tamanhoBloco; // índice ocupa o bloco todo
-    blocos[arq.blocoIndice].proximo = -1;
-
-    for (int i = 0; i < blocosNecessarios; i++) {
-        int b = blocosLivres[i];
-        blocos[b].livre = false;
-        blocos[b].arquivo = nomeArquivo;
-        blocos[b].bytesUsados = (i == blocosNecessarios - 1) ? (tamanhoBytes % tamanhoBloco) : tamanhoBloco;
-        if (blocos[b].bytesUsados == 0) blocos[b].bytesUsados = tamanhoBloco;
-        blocos[b].proximo = -1;
-        arq.blocos.push_back(b);
+    random_device rd;
+    mt19937 g(rd());
+    shuffle(freeBlocks.begin(), freeBlocks.end(), g);
+    int indexBlock = freeBlocks.back();
+    freeBlocks.pop_back();
+    File newFile;
+    newFile.indexBlock = indexBlock;
+    newFile.name = fileName;
+    newFile.size = tamanhoBlocos;
+    newFile.color = getFileColor(fileID++);
+    for (int i = 0; i < tamanhoBlocos; ++i)
+    {
+        newFile.dataBlocks.push_back(freeBlocks[i]);
+        disk[freeBlocks[i]] = indexBlock;
     }
-
-    tabelaArquivos[nomeArquivo] = arq;
-    cout << "Arquivo '" << nomeArquivo << "' criado com sucesso.\n";
+    disk[indexBlock] = -2;
+    files[fileName] = newFile;
+    tabelaDiretorio[fileName] = make_tuple(indexBlock, tamanhoBlocos);
+    fileSizesBytes[fileName] = tamanhoBytes;
+    cout << "Arquivo criado com sucesso!" << endl;
+    displayIndexado(disk, files);
 }
 
 void deletarArquivo() {
