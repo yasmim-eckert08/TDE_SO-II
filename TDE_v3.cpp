@@ -459,33 +459,51 @@ void createArquivoIndexado(vector<int> &disk, unordered_map<string, File> &files
     displayIndexado(disk, files);
 }
 
-void deletarArquivo() {
-    string nomeArquivo;
-    cout << "Digite o nome do arquivo para deletar: ";
-    cin >> nomeArquivo;
-
-    if (!tabelaArquivos.count(nomeArquivo)) {
-        cout << "Erro: Arquivo não encontrado!\n";
-        return;
+void deleteArquivo(vector<int> &disk, unordered_map<string, File> &filesIndexados,
+                   unordered_map<string, File> &filesEncadeados, unordered_map<string, File> &filesContiguous)
+{
+    string fileName;
+    cout << "Digite o nome do arquivo a ser deletado: ";
+    cin >> fileName;
+    if (filesContiguous.find(fileName) != filesContiguous.end())
+    {
+        File file = filesContiguous[fileName];
+        for (int i = file.startBlock; i < file.startBlock + file.size; ++i)
+        {
+            disk[i] = -1;
+        }
+        filesContiguous.erase(fileName);
+        tabelaDiretorio.erase(fileName);
+        cout << "Arquivo " << fileName << " deletado com sucesso!" << endl;
     }
-    Arquivo arq = tabelaArquivos[nomeArquivo];
-
-    for (int b : arq.blocos) {
-        blocos[b].livre = true;
-        blocos[b].arquivo = "";
-        blocos[b].bytesUsados = 0;
-        blocos[b].proximo = -1;
+    else if (filesEncadeados.find(fileName) != filesEncadeados.end())
+    {
+        File file = filesEncadeados[fileName];
+        for (int block : file.dataBlocks)
+        {
+            disk[block] = -1;
+        }
+        disk[file.startBlock] = -1;
+        filesEncadeados.erase(fileName);
+        tabelaDiretorio.erase(fileName);
+        cout << "Arquivo " << fileName << " deletado com sucesso!" << endl;
     }
-
-    if (metodoAlocacao == 3 && arq.blocoIndice != -1) {
-        blocos[arq.blocoIndice].livre = true;
-        blocos[arq.blocoIndice].arquivo = "";
-        blocos[arq.blocoIndice].bytesUsados = 0;
-        blocos[arq.blocoIndice].proximo = -1;
+    else if (filesIndexados.find(fileName) != filesIndexados.end())
+    {
+        File file = filesIndexados[fileName];
+        disk[file.indexBlock] = -1;
+        for (int block : file.dataBlocks)
+        {
+            disk[block] = -1;
+        }
+        filesIndexados.erase(fileName);
+        tabelaDiretorio.erase(fileName);
+        cout << "Arquivo " << fileName << " deletado com sucesso!" << endl;
     }
-
-    tabelaArquivos.erase(nomeArquivo);
-    cout << "Arquivo '" << nomeArquivo << "' deletado com sucesso!\n";
+    else
+    {
+        cout << "Erro: Arquivo não encontrado!" << endl;
+    }
 }
 
 int main() {
