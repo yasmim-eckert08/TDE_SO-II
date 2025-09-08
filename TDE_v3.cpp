@@ -90,6 +90,7 @@ void displayContiguo(const vector<int>& disk, const unordered_map<string, File>&
     cout << "---------------------------------------------------------" << endl;
     cout << "Total de bytes livres no disco: " << totalBytesLivres << " bytes" << endl;
 }
+
 void displayEncadeado(const vector<int> &disk, const unordered_map<string, File> &files)
 {
     cout << "Memória Encadeada:" << endl;
@@ -177,6 +178,85 @@ void displayEncadeado(const vector<int> &disk, const unordered_map<string, File>
     }
     cout << "---------------------------------------------------------" << endl;
     cout << "Total de bytes livres no disco: " << totalBytesLivres << " bytes" << endl;
+}
+
+void displayIndexado(const vector<int> &disk, const unordered_map<string, File> &files)
+{
+    cout << "Memória Indexada:" << endl;
+    unordered_map<int, tuple<string, int, int>> blockInfo;
+    for (const auto &[nome, file] : files)
+    {
+        // bloco índice
+        if (file.indexBlock >= 0 && file.indexBlock < static_cast<int>(disk.size()))
+        {
+            blockInfo[file.indexBlock] = make_tuple(nome, 1, tamanhoBloco);
+        }
+        // blocos de dados
+        int fileBytes = 0;
+        auto itSize = fileSizesBytes.find(nome);
+        if (itSize != fileSizesBytes.end())
+            fileBytes = itSize->second;
+        int totalBlocks = static_cast<int>(file.dataBlocks.size());
+        for (int idx = 0; idx < totalBlocks; ++idx)
+        {
+            int blk = file.dataBlocks[idx];
+            if (blk < 0 || blk >= static_cast<int>(disk.size()))
+                continue;
+            int bytesUsed = tamanhoBloco;
+            if (idx == totalBlocks - 1)
+            {
+                int before = (totalBlocks - 1) * tamanhoBloco;
+                bytesUsed = fileBytes - before;
+                if (bytesUsed < 0)
+                    bytesUsed = 0;
+                if (bytesUsed > tamanhoBloco)
+                    bytesUsed = tamanhoBloco;
+            }
+            blockInfo[blk] = make_tuple(nome, 0, bytesUsed);
+        }
+    }
+    int totalBytesLivres = 0;
+    for (size_t i = 0; i < disk.size(); ++i)
+    {
+        auto itInfo = blockInfo.find(static_cast<int>(i));
+        if (itInfo == blockInfo.end())
+        {
+            if (disk[i] == -1)
+            {
+                cout << "[" << i << "] ░" << endl;
+                totalBytesLivres += tamanhoBloco;
+            }
+            else
+            {
+                cout << "[" << i << "] █ → ?" << endl;
+            }
+            continue;
+        }
+        auto [nome, tipo, bytesUsed] = itInfo->second;
+        const File &file = files.at(nome);
+        cout << "[" << i << "] " << file.color;
+        for (int b = 0; b < bytesUsed; ++b)
+            cout << "█";
+        for (int b = bytesUsed; b < tamanhoBloco; ++b)
+            cout << "░";
+        cout << "\033[0m";
+        if (tipo == 1)
+        {
+            cout << " → BLOCO ÍNDICE do " << file.name << " → [";
+            for (size_t j = 0; j < file.dataBlocks.size(); ++j)
+            {
+                cout << file.dataBlocks[j];
+                if (j < file.dataBlocks.size() - 1)
+                    cout << ", ";
+            }
+            cout << "]";
+        }
+        totalBytesLivres += (tamanhoBloco - bytesUsed); // soma bytes livres no bloco
+        cout << endl;
+    }
+    cout << "---------------------------------------------------------" << endl;
+    cout << "Total de bytes livres no disco: " << totalBytesLivres << " bytes" << endl;
+    // 64 - 22 () = 42 - 8 = 34 (bloco indice conta como bloco ocupado - 8 bytes)
 }
 
 void displayTabelaDiretorios() {
