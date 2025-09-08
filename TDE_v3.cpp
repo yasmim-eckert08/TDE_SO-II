@@ -260,28 +260,98 @@ void displayIndexado(const vector<int> &disk, const unordered_map<string, File> 
     // 64 - 22 () = 42 - 8 = 34 (bloco indice conta como bloco ocupado - 8 bytes)
 }
 
-void displayTabelaDiretorios() {
-    cout << "\nTabela de Diretórios:\n";
-    cout << left << setw(18) << "Nome do arquivo"
-         << setw(15) << "Bloco inicial"
-         << setw(18) << "Tamanho (blocos)"
-         << setw(20) << "Tamanho total (bytes)"
-         << setw(25) << "Fragmentação interna (bytes)"
-         << "\n---------------------------------------------------------------\n";
-
-    for (const auto& [nome, arq] : tabelaArquivos) {
-        int tamanhoTotalBytes = 0;
-        int fragmentacaoInterna = 0;
-        for (int b : arq.blocos) {
-            tamanhoTotalBytes += blocos[b].bytesUsados;
-            fragmentacaoInterna += (tamanhoBloco - blocos[b].bytesUsados);
+void displayDiretorioContiguo(const unordered_map<string, File> &files)
+{
+    cout << "\nTabela de Diretório - Alocação Contígua:\n";
+    cout << left
+         << setw(20) << "Arquivo" << "| "
+         << setw(15) << "Bloco Inicial" << "| "
+         << setw(17) << "Tamanho (blocos)" << "| "
+         << setw(15) << "Tamanho (bytes)" << "| "
+         << setw(12) << "Fragmentação Interna (bytes)" << "\n";
+    cout << string(20 + 15 + 17 + 15 + 12 + 30, '-') << "\n";
+    for (const auto &[nome, file] : files)
+    {
+        int tamanhoBytes = 0;
+        auto it = fileSizesBytes.find(nome);
+        if (it != fileSizesBytes.end())
+        {
+            tamanhoBytes = it->second;
         }
-        cout << left << setw(18) << nome
-             << setw(15) << arq.blocos.front()
-             << setw(18) << (int)arq.blocos.size()
-             << setw(20) << tamanhoTotalBytes
-             << setw(25) << fragmentacaoInterna
-             << "\n";
+        int fragmentacao = (file.size * tamanhoBloco) - tamanhoBytes;
+        cout << left << setw(20) << nome << "| "
+             << right << setw(15) << file.startBlock << "| "
+             << right << setw(17) << file.size << "| "
+             << right << setw(15) << tamanhoBytes << "| "
+             << right << setw(12) << fragmentacao << "\n";
+    }
+}
+void displayDiretorioEncadeado(const unordered_map<string, File> &files)
+{
+    cout << "\nTabela de Diretório - Alocação Encadeada:\n";
+    cout << left
+         << setw(20) << "Arquivo" << "| "
+         << setw(15) << "Bloco Inicial" << "| "
+         << setw(17) << "Tamanho (blocos)" << "| "
+         << setw(15) << "Tamanho (bytes)" << "| "
+         << setw(22) << "Fragmentação Interna (bytes)" << "\n";
+    cout << string(20 + 15 + 17 + 15 + 22 + 4 * 2 + 18, '-') << "\n";
+    for (const auto &[nome, file] : files)
+    {
+        int tamanhoBytes = 0;
+        auto it = fileSizesBytes.find(nome);
+        if (it != fileSizesBytes.end())
+        {
+            tamanhoBytes = it->second;
+        }
+        int fragmentacao = (file.size * tamanhoBloco) - tamanhoBytes;
+        cout << left << setw(20) << nome << "| "
+             << right << setw(15) << file.startBlock << "| "
+             << right << setw(17) << file.size << "| "
+             << right << setw(15) << tamanhoBytes << "| "
+             << right << setw(22) << fragmentacao << "\n";
+        cout << "Blocos Encadeados: [";
+        for (size_t i = 0; i < file.dataBlocks.size(); ++i)
+        {
+            cout << file.dataBlocks[i];
+            if (i < file.dataBlocks.size() - 1)
+                cout << " → ";
+        }
+        cout << "]\n";
+    }
+}
+void displayDiretorioIndexado(const unordered_map<string, File> &files)
+{
+    cout << "\nTabela de Diretório - Alocação Indexada:\n";
+    cout << left
+         << setw(20) << "Arquivo" << "| "
+         << setw(16) << "Bloco Índice" << "| "
+         << setw(19) << "Tamanho (blocos)" << "| "
+         << setw(19) << "Tamanho (bytes)" << "| "
+         << setw(28) << "Fragmentação Interna (bytes)" << "\n";
+    cout << string(20 + 15 + 19 + 19 + 28 + 12, '-') << "\n";
+    for (const auto &[nome, file] : files)
+    {
+        int tamanhoBytes = 0;
+        auto it = fileSizesBytes.find(nome);
+        if (it != fileSizesBytes.end())
+        {
+            tamanhoBytes = it->second;
+        }
+        int fragmentacao = (file.size * tamanhoBloco) - tamanhoBytes;
+        cout << left << setw(20) << nome << "| "
+             << right << setw(15) << file.indexBlock << "| "
+             << right << setw(19) << file.size << "| "
+             << right << setw(19) << tamanhoBytes << "| "
+             << right << setw(28) << fragmentacao << "\n";
+        cout << "Blocos de Dados: [";
+        for (size_t i = 0; i < file.dataBlocks.size(); ++i)
+        {
+            cout << file.dataBlocks[i];
+            if (i < file.dataBlocks.size() - 1)
+                cout << ", ";
+        }
+        cout << "]\n";
     }
 }
 
