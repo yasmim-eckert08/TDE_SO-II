@@ -21,8 +21,8 @@ struct File
     int fragmentacao = 0;
 };
 
-string getFileColor(int fileID)
-{
+string getFileColor(int fileID) {
+    // função que retorna uma cor ANSI para o arquivo com base no seu ID
     static const vector<string> colors = {
         "\033[95m", // rosa
         "\033[32m", // verde
@@ -32,6 +32,7 @@ string getFileColor(int fileID)
         "\033[33m", // amarelo
         "\033[35m", // magenta
     };
+    // retorna a cor correspondente usando mod (%) para alternar entre as cores
     return colors[fileID % colors.size()];
 }
 
@@ -67,37 +68,39 @@ void displayContiguo(const vector<int> &disk, const unordered_map<string, File> 
             const File &file = it->second;
 
             int bytesUsed = tamanhoBloco;
+
             auto itSizes = fileSizesBytes.find(file.name);
-            if (itSizes != fileSizesBytes.end())
-            {
+            if (itSizes != fileSizesBytes.end()) {
                 int totalBytes = itSizes->second;
                 int lastBlockIndex = file.startBlock + file.size - 1;
-                if (static_cast<int>(i) == lastBlockIndex)
-                {
+                if (static_cast<int>(i) == lastBlockIndex) {
                     int bytesBefore = (file.size - 1) * tamanhoBloco;
                     bytesUsed = totalBytes - bytesBefore;
-                    if (bytesUsed < 0)
-                        bytesUsed = 0;
-                    if (bytesUsed > tamanhoBloco)
-                        bytesUsed = tamanhoBloco;
+                    if (bytesUsed < 0) bytesUsed = 0;
+                    if (bytesUsed > tamanhoBloco) bytesUsed = tamanhoBloco;
                 }
             }
 
             cout << "[" << i << "] " << file.color;
-            for (int b = 0; b < bytesUsed; ++b)
-                cout << "█";
-            for (int b = bytesUsed; b < tamanhoBloco; ++b)
-                cout << "░";
-            cout << "\033[0m";
+            for (int b = 0; b < bytesUsed; ++b) cout << "█"; // bytes ocupados
+            for (int b = bytesUsed; b < tamanhoBloco; ++b) cout << "░"; // bytes livres no bloco
+            cout << "\033[0m"; // reset da cor
 
-            if (static_cast<int>(i) == file.startBlock)
+            // indica posição do bloco dentro do arquivo
+            if (file.size == 1) {
+                cout << " → INICIO/FIM do " << file.name << endl;
+            }
+            else if (static_cast<int>(i) == file.startBlock) {
                 cout << " → INICIO do " << file.name << endl;
-            else if (static_cast<int>(i) == file.startBlock + file.size - 1)
+            }
+            else if (static_cast<int>(i) == file.startBlock + file.size - 1) {
                 cout << " → FIM do " << file.name << endl;
-            else
+            }
+            else {
                 cout << " [" << file.name << "]" << endl;
+            }
 
-            totalBytesLivres += (tamanhoBloco - bytesUsed);
+            totalBytesLivres += (tamanhoBloco - bytesUsed); // calcula fragmentação interna
         }
     }
 
@@ -109,6 +112,7 @@ void displayEncadeado(const vector<int> &disk, const unordered_map<string, File>
 {
     cout << "Memória Encadeada:" << endl;
     unordered_map<int, tuple<string, int, int, int>> blockInfo;
+
     for (const auto &[nome, file] : files)
     {
         if (file.startBlock < 0 || file.startBlock >= static_cast<int>(disk.size()))
@@ -130,9 +134,12 @@ void displayEncadeado(const vector<int> &disk, const unordered_map<string, File>
             continue;
         int fileBytes = 0;
         auto itSizes = fileSizesBytes.find(nome);
+        
         if (itSizes != fileSizesBytes.end())
             fileBytes = itSizes->second;
+        
         int chainSize = static_cast<int>(chain.size());
+        
         for (int idx = 0; idx < chainSize; ++idx)
         {
             int bytesUsed = tamanhoBloco;
@@ -149,6 +156,7 @@ void displayEncadeado(const vector<int> &disk, const unordered_map<string, File>
         }
     }
     int totalBytesLivres = 0;
+
     for (size_t i = 0; i < disk.size(); ++i)
     {
         auto itInfo = blockInfo.find(static_cast<int>(i));
@@ -167,28 +175,29 @@ void displayEncadeado(const vector<int> &disk, const unordered_map<string, File>
         }
         auto [nome, pos, chainSize, bytesUsed] = itInfo->second;
         const File &file = files.at(nome);
+
         cout << "[" << i << "] " << file.color;
         for (int b = 0; b < bytesUsed; ++b)
             cout << "█";
         for (int b = bytesUsed; b < tamanhoBloco; ++b)
             cout << "░";
         cout << "\033[0m";
+
         int prox = disk[i];
-        if (pos == 0)
-        {
-            if (prox == -2)
-                cout << " → INICIO → FIM do " << file.name << endl;
-            else
-                cout << " → INICIO do " << file.name << " → [" << prox << "]" << endl;
+        
+        if (chainSize == 1) {
+            cout << " → INICIO/FIM do " << file.name << endl;
         }
-        else
-        {
-            if (prox == -2)
-                cout << " → FIM do " << file.name << endl;
-            else
-                cout << " → [" << prox << "]" << endl;
+        else if (pos == 0) {
+            if (prox == -2) cout << " → INICIO → FIM do " << file.name << endl;
+            else cout << " → INICIO do " << file.name << " → [" << prox << "]" << endl;
+        } 
+        else {
+            if (prox == -2) cout << " → FIM do " << file.name << endl;
+            else cout << " → [" << prox << "]" << endl;
         }
-        totalBytesLivres += (tamanhoBloco - bytesUsed);
+
+        totalBytesLivres += (tamanhoBloco - bytesUsed); // calcula fragmentação interna
     }
     cout << "---------------------------------------------------------" << endl;
     cout << "Total de bytes livres no disco: " << totalBytesLivres << " bytes" << endl;
@@ -197,6 +206,7 @@ void displayEncadeado(const vector<int> &disk, const unordered_map<string, File>
 void displayIndexado(const vector<int> &disk, const unordered_map<string, File> &files)
 {
     cout << "Memória Indexada:" << endl;
+
     unordered_map<int, tuple<string, int, int>> blockInfo;
     for (const auto &[nome, file] : files)
     {
@@ -208,9 +218,12 @@ void displayIndexado(const vector<int> &disk, const unordered_map<string, File> 
         // blocos de dados
         int fileBytes = 0;
         auto itSize = fileSizesBytes.find(nome);
+
         if (itSize != fileSizesBytes.end())
             fileBytes = itSize->second;
+        
         int totalBlocks = static_cast<int>(file.dataBlocks.size());
+        
         for (int idx = 0; idx < totalBlocks; ++idx)
         {
             int blk = file.dataBlocks[idx];
@@ -230,6 +243,7 @@ void displayIndexado(const vector<int> &disk, const unordered_map<string, File> 
         }
     }
     int totalBytesLivres = 0;
+
     for (size_t i = 0; i < disk.size(); ++i)
     {
         auto itInfo = blockInfo.find(static_cast<int>(i));
@@ -248,23 +262,39 @@ void displayIndexado(const vector<int> &disk, const unordered_map<string, File> 
         }
         auto [nome, tipo, bytesUsed] = itInfo->second;
         const File &file = files.at(nome);
+
         cout << "[" << i << "] " << file.color;
         for (int b = 0; b < bytesUsed; ++b)
             cout << "█";
         for (int b = bytesUsed; b < tamanhoBloco; ++b)
             cout << "░";
         cout << "\033[0m";
-        if (tipo == 1)
-        {
+        
+        if (tipo == 1) { 
+            // bloco índice → mostra os ponteiros para os blocos de dados
             cout << " → BLOCO ÍNDICE do " << file.name << " → [";
-            for (size_t j = 0; j < file.dataBlocks.size(); ++j)
-            {
+            for (size_t j = 0; j < file.dataBlocks.size(); ++j) {
                 cout << file.dataBlocks[j];
-                if (j < file.dataBlocks.size() - 1)
-                    cout << ", ";
+                if (j < file.dataBlocks.size() - 1) cout << ", ";
             }
             cout << "]";
+        } else {
+            // bloco de dados → indica início, meio ou fim do arquivo
+            int totalBlocks = static_cast<int>(file.dataBlocks.size());
+            if (totalBlocks == 1) {
+                cout << " → INICIO/FIM do " << file.name;
+            } else {
+                int idx = find(file.dataBlocks.begin(), file.dataBlocks.end(), (int)i) - file.dataBlocks.begin();
+                if (idx == 0) {
+                    cout << " → INICIO do " << file.name;
+                } else if (idx == totalBlocks - 1) {
+                    cout << " → FIM do " << file.name;
+                } else {
+                    cout << " [" << file.name << "]";
+                }
+            }
         }
+        
         totalBytesLivres += (tamanhoBloco - bytesUsed); // soma bytes livres no bloco
         cout << endl;
     }
@@ -273,342 +303,262 @@ void displayIndexado(const vector<int> &disk, const unordered_map<string, File> 
     // 64 - 22 () = 42 - 8 = 34 (bloco indice conta como bloco ocupado - 8 bytes)
 }
 
-void estenderArquivoContiguo(
-    vector<int> &disk,
-    unordered_map<string, File> &filesContiguous,
-    unordered_map<string, int> &fileSizesBytes,
-    int blockSize,
-    unordered_map<string, tuple<int, int>> &tabelaDiretorio)
-{
+void estenderArquivoContiguo(vector<int>& disk, unordered_map<string, File>& filesContiguous, unordered_map<string, int>& fileSizesBytes, int blockSize, unordered_map<string, tuple<int,int>>& tabelaDiretorio) {
+    // solicita o nome do arquivo e o número de bytes a serem adicionados
     string fileName;
     int adicionalBytes;
+
     cout << "Digite o nome do arquivo a ser estendido: ";
     cin >> fileName;
-    if (filesContiguous.find(fileName) == filesContiguous.end())
-    {
+
+    // verifica se o arquivo existe
+    if (filesContiguous.find(fileName) == filesContiguous.end()) {
         cout << "Erro: Arquivo não encontrado!" << endl;
         return;
     }
+
     cout << "Digite o número de bytes a serem adicionados: ";
     cin >> adicionalBytes;
-    if (adicionalBytes <= 0)
-    {
+
+    if (adicionalBytes <= 0) {
         cout << "Erro: Valor inválido para extensão." << endl;
         return;
     }
-    File &file = filesContiguous[fileName];
+
+    // referência ao arquivo
+    File& file = filesContiguous[fileName];
     int start = file.startBlock;
     int blocosOcupados = file.size;
-    int blocosAdicionais = (adicionalBytes + blockSize - 1) / blockSize;
     int discoTotalBlocos = (int)disk.size();
-    int fimArquivo = start + blocosOcupados;
-    bool podeEstender = true;
-    if (fimArquivo + blocosAdicionais > discoTotalBlocos)
-    {
-        podeEstender = false;
+
+    // tamanho atual em bytes
+    int tamanhoAtualBytes = fileSizesBytes[fileName];
+    int espacoLivreUltimoBloco = (blocosOcupados * blockSize) - tamanhoAtualBytes;
+
+    int blocosAdicionais = 0;
+
+    // primeiro tenta preencher o espaço livre do último bloco
+    if (adicionalBytes <= espacoLivreUltimoBloco) {
+        // cabe inteiro no bloco já existente
+        fileSizesBytes[fileName] += adicionalBytes;
+        adicionalBytes = 0;
+    } else {
+        // preenche o que falta do último bloco
+        adicionalBytes -= espacoLivreUltimoBloco;
+        fileSizesBytes[fileName] += espacoLivreUltimoBloco;
+
+        // calcula blocos adicionais realmente necessários
+        blocosAdicionais = (adicionalBytes + blockSize - 1) / blockSize;
     }
-    else
-    {
-        for (int i = fimArquivo; i < fimArquivo + blocosAdicionais; ++i)
-        {
-            if (disk[i] != -1)
-            {
+
+    int fimArquivo = start + blocosOcupados;
+
+    // verifica se há espaço contíguo disponível para os blocos adicionais
+    bool podeEstender = true;
+    if (fimArquivo + blocosAdicionais > discoTotalBlocos) {
+        podeEstender = false;
+    } else {
+        for (int i = fimArquivo; i < fimArquivo + blocosAdicionais; ++i) {
+            if (disk[i] != -1) {
                 podeEstender = false;
                 break;
             }
         }
     }
-    if (podeEstender)
-    {
-        for (int i = fimArquivo; i < fimArquivo + blocosAdicionais; ++i)
-        {
-            disk[i] = start;
+
+    // realiza a extensão do arquivo se possível
+    if (podeEstender) {
+        for (int i = fimArquivo; i < fimArquivo + blocosAdicionais; ++i) {
+            disk[i] = start; // marca os novos blocos como ocupados pelo arquivo
         }
+
+        // atualiza tamanho em blocos
         file.size += blocosAdicionais;
+
+        // adiciona o restante dos bytes
         fileSizesBytes[fileName] += adicionalBytes;
+
+        // recalcula fragmentação interna
         file.fragmentacao = (file.size * blockSize) - fileSizesBytes[fileName];
+
+        // atualiza a tabela de diretório
         tabelaDiretorio[fileName] = make_tuple(file.startBlock, file.size);
+
         cout << "Arquivo estendido com sucesso!" << endl;
         displayContiguo(disk, filesContiguous);
-    }
-    else
-    {
+    } else {
         cout << "Erro: Não há espaço contíguo disponível para extensão!" << endl;
     }
 }
-void estenderArquivoEncadeado(
-    vector<int> &disk,
-    unordered_map<string, File> &filesEncadeados,
-    unordered_map<string, int> &fileSizesBytes,
-    int blockSize,
-    unordered_map<string, tuple<int, int>> &tabelaDiretorio)
-{
+
+void estenderArquivoEncadeado(vector<int>& disk, unordered_map<string, File>& filesEncadeados, unordered_map<string, int>& fileSizesBytes, int blockSize, unordered_map<string, tuple<int,int>>& tabelaDiretorio) {
+    // solicita o nome do arquivo e o número de bytes a serem adicionados
     string fileName;
     int adicionalBytes;
+
     cout << "Digite o nome do arquivo a ser estendido: ";
     cin >> fileName;
-    if (filesEncadeados.find(fileName) == filesEncadeados.end())
-    {
+
+    // verifica se o arquivo existe
+    if (filesEncadeados.find(fileName) == filesEncadeados.end()) {
         cout << "Erro: Arquivo não encontrado!" << endl;
         return;
     }
+
     cout << "Digite o número de bytes a serem adicionados: ";
     cin >> adicionalBytes;
-    if (adicionalBytes <= 0)
-    {
+
+    if (adicionalBytes <= 0) {
         cout << "Erro: Valor inválido para extensão." << endl;
         return;
     }
-    File &file = filesEncadeados[fileName];
-    int blocosAdicionais = (adicionalBytes + blockSize - 1) / blockSize;
-    vector<int> freeBlocks;
-    for (size_t i = 0; i < disk.size(); ++i)
-    {
-        if (disk[i] == -1)
-        {
-            freeBlocks.push_back(i);
+    
+    // referência ao arquivo
+    File& file = filesEncadeados[fileName];
+    int bytesAtuais = fileSizesBytes[fileName];
+    int restanteBytes = adicionalBytes;
+
+    // calcula espaço livre no último bloco existente
+    int bytesNoUltimoBloco = bytesAtuais % blockSize;
+    int espacoLivreUltimoBloco = (bytesNoUltimoBloco == 0) ? 0 : blockSize - bytesNoUltimoBloco;
+
+    // aproveita o espaço do último bloco parcial
+    if (restanteBytes <= espacoLivreUltimoBloco) {
+        fileSizesBytes[fileName] += restanteBytes;
+        file.fragmentacao = (file.dataBlocks.size() * blockSize) - fileSizesBytes[fileName];
+        tabelaDiretorio[fileName] = make_tuple(file.startBlock, (int)file.dataBlocks.size());
+        cout << "Arquivo estendido com sucesso!" << endl;
+        displayEncadeado(disk, filesEncadeados);
+        return;
+    } else {
+        if (espacoLivreUltimoBloco > 0) {
+            fileSizesBytes[fileName] += espacoLivreUltimoBloco;
+            restanteBytes -= espacoLivreUltimoBloco;
         }
     }
-    if ((int)freeBlocks.size() < blocosAdicionais)
-    {
+
+    // calcula quantos blocos adicionais são necessários
+    int blocosAdicionais = (restanteBytes + blockSize - 1) / blockSize;
+
+    // busca blocos livres no disco
+    vector<int> freeBlocks;
+    for (size_t i = 0; i < disk.size(); ++i) {
+        if (disk[i] == -1) freeBlocks.push_back(i);
+    }
+
+    if ((int)freeBlocks.size() < blocosAdicionais) {
         cout << "Erro: Espaço insuficiente para estender o arquivo!" << endl;
         return;
     }
+
+    // embaralha blocos livres para distribuição aleatória
     random_device rd;
     mt19937 g(rd());
     shuffle(freeBlocks.begin(), freeBlocks.end(), g);
-    int ultimoBloco = file.dataBlocks.back();
-    disk[ultimoBloco] = freeBlocks[0];
-    for (int i = 0; i < blocosAdicionais; ++i)
-    {
+
+    // atualiza ponteiro do último bloco existente somente se há novos blocos
+    if (!freeBlocks.empty()) {
+        int ultimoBlocoExistente = file.dataBlocks.back();
+        disk[ultimoBlocoExistente] = freeBlocks[0];
+    }
+
+    // adiciona os novos blocos à cadeia
+    for (int i = 0; i < blocosAdicionais; ++i) {
         int atual = freeBlocks[i];
         file.dataBlocks.push_back(atual);
-        if (i < blocosAdicionais - 1)
-        {
+
+        if (i < blocosAdicionais - 1) {
             disk[atual] = freeBlocks[i + 1];
-        }
-        else
-        {
-            disk[atual] = -2;
+        } else {
+            disk[atual] = -2; // fim da cadeia
         }
     }
+
+    // aualiza tamanho total e fragmentação
+    fileSizesBytes[fileName] += restanteBytes;
     file.size = (int)file.dataBlocks.size();
-    fileSizesBytes[fileName] += adicionalBytes;
     file.fragmentacao = (file.size * blockSize) - fileSizesBytes[fileName];
+
+    // atualiza a tabela de diretório
     tabelaDiretorio[fileName] = make_tuple(file.startBlock, file.size);
+
     cout << "Arquivo estendido com sucesso!" << endl;
-    displayEncadeado(disk, filesEncadeados);
+    displayEncadeado(disk, filesEncadeados); // mostra o disco atualizado
 }
-void estenderArquivoIndexado(
-    vector<int> &disk,
-    unordered_map<string, File> &filesIndexados,
-    unordered_map<string, int> &fileSizesBytes,
-    int blockSize,
-    unordered_map<string, tuple<int, int>> &tabelaDiretorio)
-{
+
+void estenderArquivoIndexado(vector<int>& disk, unordered_map<string, File>& filesIndexados, unordered_map<string, int>& fileSizesBytes, int blockSize, unordered_map<string, tuple<int,int>>& tabelaDiretorio) {
+    // solicita o nome do arquivo e o número de bytes a serem adicionados
     string fileName;
     int adicionalBytes;
+
     cout << "Digite o nome do arquivo a ser estendido: ";
     cin >> fileName;
-    if (filesIndexados.find(fileName) == filesIndexados.end())
-    {
+
+    // verifica se o arquivo existe
+    if (filesIndexados.find(fileName) == filesIndexados.end()) {
         cout << "Erro: Arquivo não encontrado!" << endl;
         return;
     }
+
     cout << "Digite o número de bytes a serem adicionados: ";
     cin >> adicionalBytes;
-    if (adicionalBytes <= 0)
-    {
+
+    if (adicionalBytes <= 0) {
         cout << "Erro: Valor inválido para extensão." << endl;
         return;
     }
-    File &file = filesIndexados[fileName];
-    int blocosAdicionais = (adicionalBytes + blockSize - 1) / blockSize;
-    vector<int> freeBlocks;
-    for (size_t i = 0; i < disk.size(); ++i)
-    {
-        if (disk[i] == -1)
-        {
-            freeBlocks.push_back(i);
-        }
-    }
-    if ((int)freeBlocks.size() < blocosAdicionais)
-    {
-        cout << "Erro: Espaço insuficiente para estender o arquivo!" << endl;
-        return;
-    }
-    random_device rd;
-    mt19937 g(rd());
-    shuffle(freeBlocks.begin(), freeBlocks.end(), g);
-    for (int i = 0; i < blocosAdicionais; ++i)
-    {
-        int bloco = freeBlocks[i];
-        disk[bloco] = file.indexBlock;
-        file.dataBlocks.push_back(bloco);
-    }
-    file.size = (int)file.dataBlocks.size();
-    fileSizesBytes[fileName] += adicionalBytes;
-    file.fragmentacao = (file.size * blockSize) - fileSizesBytes[fileName];
-    tabelaDiretorio[fileName] = make_tuple(file.indexBlock, file.size);
-    cout << "Arquivo estendido com sucesso!" << endl;
-    displayIndexado(disk, filesIndexados);
-}
 
-void simularLeituraContiguo(
-    const unordered_map<string, File> &filesContiguous,
-    const unordered_map<string, int> &fileSizesBytes,
-    int blockSize,
-    int t_sequencial = 1,
-    int t_aleatorio = 5)
-{
-    string fileName;
-    cout << "Digite o nome do arquivo para simular a leitura: ";
-    cin >> fileName;
-    if (filesContiguous.find(fileName) == filesContiguous.end())
-    {
-        cout << "Arquivo não encontrado." << endl;
-        return;
+    // referência ao arquivo
+    File& file = filesIndexados[fileName];
+    int bytesNoUltimoBloco = fileSizesBytes[fileName] % blockSize;
+    int restanteBytes = adicionalBytes;
+
+    // aproveita espaço livre no último bloco, se houver
+    if (bytesNoUltimoBloco > 0) {
+        int espacoLivre = blockSize - bytesNoUltimoBloco;
+        int bytesParaAdicionar = min(restanteBytes, espacoLivre);
+        fileSizesBytes[fileName] += bytesParaAdicionar;
+        restanteBytes -= bytesParaAdicionar;
     }
-    const File &file = filesContiguous.at(fileName);
-    vector<int> blocosArquivo;
-    for (int i = file.startBlock; i < file.startBlock + file.size; ++i)
-    {
-        blocosArquivo.push_back(i);
+
+    // calcula quantos blocos inteiros adicionais são necessários
+    int blocosAdicionais = (restanteBytes + blockSize - 1) / blockSize;
+
+    if (blocosAdicionais > 0) {
+        // procura por blocos livres no disco
+        vector<int> freeBlocks;
+        for (size_t i = 0; i < disk.size(); ++i) {
+            if (disk[i] == -1) freeBlocks.push_back(i);
+        }
+
+        if ((int)freeBlocks.size() < blocosAdicionais) {
+            cout << "Erro: Espaço insuficiente para estender o arquivo!" << endl;
+            return;
+        }
+
+        // embaralha os blocos livres aleatoriamente
+        random_device rd;
+        mt19937 g(rd());
+        shuffle(freeBlocks.begin(), freeBlocks.end(), g);
+
+        // adiciona os novos blocos e aponta para o bloco índice
+        for (int i = 0; i < blocosAdicionais; ++i) {
+            int bloco = freeBlocks[i];
+            disk[bloco] = file.indexBlock;
+            file.dataBlocks.push_back(bloco);
+        }
+
+        fileSizesBytes[fileName] += restanteBytes;
     }
-    int tempoSequencial = (int)blocosArquivo.size() * t_sequencial;
-    vector<int> blocosAleatorios = blocosArquivo;
-    random_device rd;
-    mt19937 g(rd());
-    shuffle(blocosAleatorios.begin(), blocosAleatorios.end(), g);
-    int tempoAleatorio = (int)blocosAleatorios.size() * t_aleatorio;
-    int fragmentacao = (file.size * blockSize) - fileSizesBytes.at(fileName);
-    cout << "\nSimulação de leitura do arquivo '" << fileName << "' (Contígua):\n";
-    cout << "Fragmentação interna: " << fragmentacao << " bytes\n";
-    cout << "Tempo leitura sequencial: " << tempoSequencial << " ms\n";
-    cout << "Tempo leitura aleatória: " << tempoAleatorio << " ms\n";
-    cout << "Ordem sequencial dos blocos: [";
-    for (size_t i = 0; i < blocosArquivo.size(); ++i)
-    {
-        cout << blocosArquivo[i];
-        if (i < blocosArquivo.size() - 1)
-            cout << ", ";
-    }
-    cout << "]\n";
-    cout << "Ordem aleatória dos blocos: [";
-    for (size_t i = 0; i < blocosAleatorios.size(); ++i)
-    {
-        cout << blocosAleatorios[i];
-        if (i < blocosAleatorios.size() - 1)
-            cout << ", ";
-    }
-    cout << "]\n";
-}
-void simularLeituraEncadeado(
-    const vector<int> &disk,
-    const unordered_map<string, File> &filesEncadeados,
-    const unordered_map<string, int> &fileSizesBytes,
-    int blockSize,
-    int t_sequencial = 1,
-    int t_aleatorio = 5)
-{
-    string fileName;
-    cout << "Digite o nome do arquivo para simular a leitura: ";
-    cin >> fileName;
-    if (filesEncadeados.find(fileName) == filesEncadeados.end())
-    {
-        cout << "Arquivo não encontrado." << endl;
-        return;
-    }
-    const File &file = filesEncadeados.at(fileName);
-    vector<int> blocosArquivo;
-    int blocoAtual = file.dataBlocks.empty() ? -1 : file.dataBlocks.front();
-    while (blocoAtual != -2 && blocoAtual != -1)
-    {
-        blocosArquivo.push_back(blocoAtual);
-        blocoAtual = disk[blocoAtual];
-    }
-    if (blocosArquivo.empty())
-    {
-        cout << "Erro: Arquivo vazio ou lista de blocos inválida!" << endl;
-        return;
-    }
-    int tempoSequencial = (int)blocosArquivo.size() * t_sequencial;
-    vector<int> blocosAleatorios = blocosArquivo;
-    random_device rd;
-    mt19937 g(rd());
-    shuffle(blocosAleatorios.begin(), blocosAleatorios.end(), g);
-    int tempoAleatorio = (int)blocosAleatorios.size() * t_aleatorio;
-    int fragmentacao = (file.size * blockSize) - fileSizesBytes.at(fileName);
-    cout << "\nSimulação de leitura do arquivo '" << fileName << "' (Encadeada):\n";
-    cout << "Fragmentação interna: " << fragmentacao << " bytes\n";
-    cout << "Tempo leitura sequencial: " << tempoSequencial << " ms\n";
-    cout << "Tempo leitura aleatória: " << tempoAleatorio << " ms\n";
-    cout << "Ordem sequencial dos blocos: [";
-    for (size_t i = 0; i < blocosArquivo.size(); ++i)
-    {
-        cout << blocosArquivo[i];
-        if (i < blocosArquivo.size() - 1)
-            cout << ", ";
-    }
-    cout << "]\n";
-    cout << "Ordem aleatória dos blocos: [";
-    for (size_t i = 0; i < blocosAleatorios.size(); ++i)
-    {
-        cout << blocosAleatorios[i];
-        if (i < blocosAleatorios.size() - 1)
-            cout << ", ";
-    }
-    cout << "]\n";
-}
-void simularLeituraIndexado(
-    const unordered_map<string, File> &filesIndexados,
-    const unordered_map<string, int> &fileSizesBytes,
-    int blockSize,
-    int t_sequencial = 1,
-    int t_aleatorio = 5)
-{
-    string fileName;
-    cout << "Digite o nome do arquivo para simular a leitura: ";
-    cin >> fileName;
-    if (filesIndexados.find(fileName) == filesIndexados.end())
-    {
-        cout << "Arquivo não encontrado." << endl;
-        return;
-    }
-    const File &file = filesIndexados.at(fileName);
-    const vector<int> &blocosArquivo = file.dataBlocks;
-    if (blocosArquivo.empty())
-    {
-        cout << "Arquivo vazio." << endl;
-        return;
-    }
-    int tempoSequencial = (int)blocosArquivo.size() * t_sequencial;
-    vector<int> blocosAleatorios = blocosArquivo;
-    random_device rd;
-    mt19937 g(rd());
-    shuffle(blocosAleatorios.begin(), blocosAleatorios.end(), g);
-    int tempoAleatorio = (int)blocosAleatorios.size() * t_aleatorio;
-    int fragmentacao = (file.size * blockSize) - fileSizesBytes.at(fileName);
-    cout << "\nSimulação de leitura do arquivo '" << fileName << "' (Indexada):\n";
-    cout << "Fragmentação interna: " << fragmentacao << " bytes\n";
-    cout << "Tempo leitura sequencial: " << tempoSequencial << " ms\n";
-    cout << "Tempo leitura aleatória: " << tempoAleatorio << " ms\n";
-    cout << "Ordem sequencial dos blocos: [";
-    for (size_t i = 0; i < blocosArquivo.size(); ++i)
-    {
-        cout << blocosArquivo[i];
-        if (i < blocosArquivo.size() - 1)
-            cout << ", ";
-    }
-    cout << "]\n";
-    cout << "Ordem aleatória dos blocos: [";
-    for (size_t i = 0; i < blocosAleatorios.size(); ++i)
-    {
-        cout << blocosAleatorios[i];
-        if (i < blocosAleatorios.size() - 1)
-            cout << ", ";
-    }
-    cout << "]\n";
+
+    // atualiza tamanho total e fragmentação
+    file.size = (int)file.dataBlocks.size();
+    file.fragmentacao = (file.size * blockSize) - fileSizesBytes[fileName];
+    // atualiza a tabela de diretório
+    tabelaDiretorio[fileName] = make_tuple(file.indexBlock, file.size);
+
+    cout << "Arquivo estendido com sucesso!" << endl;
+    displayIndexado(disk, filesIndexados); // mostra o disco atualizado
 }
 
 void displayDiretorioContiguo(const unordered_map<string, File> &files)
@@ -637,6 +587,7 @@ void displayDiretorioContiguo(const unordered_map<string, File> &files)
              << right << setw(12) << fragmentacao << "\n";
     }
 }
+
 void displayDiretorioEncadeado(const unordered_map<string, File> &files)
 {
     cout << "\nTabela de Diretório - Alocação Encadeada:\n";
@@ -671,6 +622,7 @@ void displayDiretorioEncadeado(const unordered_map<string, File> &files)
         cout << "]\n";
     }
 }
+
 void displayDiretorioIndexado(const unordered_map<string, File> &files)
 {
     cout << "\nTabela de Diretório - Alocação Indexada:\n";
@@ -880,8 +832,8 @@ void createArquivoIndexado(vector<int> &disk, unordered_map<string, File> &files
     displayIndexado(disk, files);
 }
 
-void deleteArquivo(vector<int> &disk, unordered_map<string, File> &filesIndexados,
-                   unordered_map<string, File> &filesEncadeados, unordered_map<string, File> &filesContiguous)
+void deleteArquivo(vector<int> &disk, unordered_map<string, File> &filesContiguous,
+                   unordered_map<string, File> &filesEncadeados, unordered_map<string, File> &filesIndexados)
 {
     string fileName;
     cout << "Digite o nome do arquivo a ser deletado: ";
@@ -927,11 +879,195 @@ void deleteArquivo(vector<int> &disk, unordered_map<string, File> &filesIndexado
     }
 }
 
+void simularLeituraContiguo(const unordered_map<string, File>& filesContiguous, const unordered_map<string, int>& fileSizesBytes, int blockSize, int t_sequencial = 1, int t_aleatorio = 6){
+    // solicita o nome do arquivo a ser lido
+    string fileName;
+    cout << "Digite o nome do arquivo para simular a leitura: ";
+    cin >> fileName;
+
+    // Verifica se o arquivo existe
+    if (filesContiguous.find(fileName) == filesContiguous.end()) {
+        cout << "Arquivo não encontrado." << endl;
+        return;
+    }
+
+    const File& file = filesContiguous.at(fileName);
+
+    // monta o vetor de blocos do arquivo
+    vector<int> blocosArquivo;
+    for (int i = 0; i < file.size; ++i) {
+        blocosArquivo.push_back(file.startBlock + i);
+    }
+
+    int fragmentacao = (file.size * blockSize) - fileSizesBytes.at(fileName);
+
+    // tempo sequencial: percorre todos os blocos em sequência
+    int tempoSequencial = (int)blocosArquivo.size() * t_sequencial;
+
+    cout << "\nSimulação de leitura do arquivo '" << fileName << "' (Contígua):\n";
+    cout << "Fragmentação interna: " << fragmentacao << " bytes\n";
+    cout << "Tempo leitura sequencial: " << tempoSequencial << " ms\n";
+
+    // imprime a ordem sequencial dos blocos
+    cout << "Ordem sequencial dos blocos: [";
+    for (size_t i = 0; i < blocosArquivo.size(); ++i) {
+        cout << blocosArquivo[i];
+        if (i < blocosArquivo.size() - 1) cout << ", ";
+    }
+    cout << "]\n";
+
+    // solicita o índice do bloco a ser acessado aleatoriamente
+    int indiceDesejado;
+    cout << "Digite o índice do bloco que deseja acessar (0 = primeiro bloco): ";
+    cin >> indiceDesejado;
+
+    if (indiceDesejado < 0 || indiceDesejado >= static_cast<int>(blocosArquivo.size())) {
+        cout << "Índice inválido. Digite um valor entre 0 e " << static_cast<int>(blocosArquivo.size()) - 1 << ".\n";
+    } else {
+        int blocoReal = blocosArquivo[indiceDesejado];
+
+        // tempo aleatório: tempo fixo por bloco acessado (blocos adajacentes, acesso direto)
+        int tempoBloco = t_aleatorio;
+
+        cout << "Tempo para acessar o bloco " << blocoReal << " aleatoriamente: " << tempoBloco << " ms\n";
+    }
+}
+
+void simularLeituraEncadeado(const vector<int>& disk, const unordered_map<string, File>& filesEncadeados, const unordered_map<string, int>& fileSizesBytes, int blockSize, int t_sequencial = 1, int t_aleatorio = 5) {
+    // solicita o nome do arquivo a ser lido
+    string fileName;
+    cout << "Digite o nome do arquivo para simular a leitura: ";
+    cin >> fileName;
+
+    // verifica se o arquivo existe
+    if (filesEncadeados.find(fileName) == filesEncadeados.end()) {
+        cout << "Arquivo não encontrado." << endl;
+        return;
+    }
+
+    const File& file = filesEncadeados.at(fileName);
+
+    // monta o vetor de blocos seguindo os ponteiros
+    vector<int> blocosArquivo;
+    int blocoAtual = file.dataBlocks.empty() ? -1 : file.dataBlocks.front();
+
+    while (blocoAtual != -1 && blocoAtual != -2) { //fim da cadeia
+        blocosArquivo.push_back(blocoAtual);
+        blocoAtual = disk[blocoAtual]; // próximo bloco
+    }
+
+    if (blocosArquivo.empty()) {
+        cout << "Erro: Arquivo vazio ou lista de blocos inválida!" << endl;
+        return;
+    }
+
+    int fragmentacao = (file.size * blockSize) - fileSizesBytes.at(fileName);
+
+    // tempo sequencial: percorrer todos os blocos do arquivo
+    int tempoSequencial = (int)blocosArquivo.size() * t_sequencial;
+
+    cout << "\nSimulação de leitura do arquivo '" << fileName << "' (Encadeada):\n";
+    cout << "Fragmentação interna: " << fragmentacao << " bytes\n";
+    cout << "Tempo leitura sequencial: " << tempoSequencial << " ms\n";
+
+    // imprime ordem sequencial dos blocos
+    cout << "Ordem sequencial dos blocos: [";
+    for (size_t i = 0; i < blocosArquivo.size(); ++i) {
+        cout << blocosArquivo[i];
+        if (i < blocosArquivo.size() - 1) cout << ", ";
+    }
+    cout << "]\n";
+
+    // solicita o índice do bloco a ser acessado aleatoriamente
+    int indiceDesejado;
+    cout << "Digite o índice do bloco que deseja acessar (0 = primeiro bloco): ";
+    cin >> indiceDesejado;
+
+    if (indiceDesejado < 0 || indiceDesejado >= static_cast<int>(blocosArquivo.size())) {
+        cout << "Índice inválido. Digite um valor entre 0 e " << static_cast<int>(blocosArquivo.size()) - 1 << ".\n";
+    } else {
+        int blocoReal = blocosArquivo[indiceDesejado];
+        // tempo de acesso aleatório: depende da posição (precisa percorrer a cadeia até o bloco desejado)
+        int tempoBloco = (indiceDesejado + 1) * t_aleatorio;
+
+        cout << "Tempo para acessar o bloco " << blocoReal << " aleatoriamente: " << tempoBloco << " ms\n";
+
+        // percurso da cadeia encadeada até o bloco desejado
+        cout << "Percurso até o bloco desejado: ";
+        for (int i = 0; i <= indiceDesejado; ++i) {
+            cout << blocosArquivo[i];
+            if (i < indiceDesejado) cout << " -> ";
+        }
+        cout << "\n";
+    }
+}
+
+void simularLeituraIndexado(const unordered_map<string, File>& filesIndexados, const unordered_map<string, int>& fileSizesBytes, int blockSize, int t_sequencial = 1, int t_aleatorio = 5, int t_indice = 5) {
+    // solicita o nome do arquivo a ser lido
+    string fileName;
+    cout << "Digite o nome do arquivo para simular a leitura: ";
+    cin >> fileName;
+
+    // verifica se o arquivo existe
+    if (filesIndexados.find(fileName) == filesIndexados.end()) {
+        cout << "Arquivo não encontrado." << endl;
+        return;
+    }
+
+    
+    const File& file = filesIndexados.at(fileName);
+    const vector<int>& blocosArquivo = file.dataBlocks;
+
+    if (blocosArquivo.empty()) {
+        cout << "Arquivo vazio." << endl;
+        return;
+    }
+
+    int fragmentacao = (file.size * blockSize) - fileSizesBytes.at(fileName);
+
+    // tempo sequencial: ler bloco de índice + percorrer todos os blocos do arquivo
+    int tempoSequencial = t_indice + (int)blocosArquivo.size() * t_sequencial;
+
+    cout << "\nSimulação de leitura do arquivo '" << fileName << "' (Indexada):\n";
+    cout << "Fragmentação interna: " << fragmentacao << " bytes\n";
+    cout << "Tempo leitura sequencial: " << tempoSequencial << " ms\n";
+
+    // imprime a ordem sequencial dos blocos
+    cout << "Ordem sequencial dos blocos: [";
+    for (size_t i = 0; i < blocosArquivo.size(); ++i) {
+        cout << blocosArquivo[i];
+        if (i < blocosArquivo.size() - 1) cout << ", ";
+    }
+    cout << "]\n";
+
+    // solicita o índice do bloco a ser acessado aleatoriamente
+    int indiceDesejado;
+    cout << "Digite o índice do bloco que deseja acessar (0 = primeiro bloco): ";
+    cin >> indiceDesejado;
+
+    if (indiceDesejado < 0 || indiceDesejado >= static_cast<int>(blocosArquivo.size())) {
+        cout << "Índice inválido. Digite um valor entre 0 e " << static_cast<int>(blocosArquivo.size()) - 1 << ".\n";
+    } else {
+        int blocoReal = blocosArquivo[indiceDesejado];
+
+        // // tempo de acesso aleatório: acessar bloco de índice + acessar bloco desejado
+        int tempoBloco = t_indice + t_aleatorio;
+
+        cout << "Tempo para acessar o bloco " << blocoReal << " aleatoriamente: " << tempoBloco << " ms\n";
+
+        // percurso do bloco de índice até o bloco desejado
+        cout << "Percurso até o bloco desejado: bloco índice -> " << blocoReal << "\n";
+    }
+}
+
 int main()
 {
     int diskSizeBytes;
     do
     {
+        cout << "===== SIMULADOR DE ALOCAÇÃO DE ARQUIVOS =====\n";
+        cout << "  Métodos: Contígua | Encadeada | Indexada\n";
+        cout << "   Simulação com blocos lógicos de 8 bytes\n";
         cout << "Determine o tamanho do disco em bytes (mínimo 16 (2 blocos) | máximo 1024 bytes (128 blocos)): ";
         cin >> diskSizeBytes;
         if (diskSizeBytes < 16 || diskSizeBytes > 1024)
@@ -984,7 +1120,7 @@ int main()
             }
             break;
         case 2:
-            deleteArquivo(disk, filesIndexados, filesEncadeados, filesContiguous);
+            deleteArquivo(disk, filesContiguous, filesEncadeados, filesIndexados);
             break;
         case 3:
             if (tipoAlocacao == 1)
