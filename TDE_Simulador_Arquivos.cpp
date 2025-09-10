@@ -66,7 +66,8 @@ void displayContiguo(const vector<int>& disk, const unordered_map<string, File>&
 
             int bytesUsed = tamanhoBloco;
 
-            // verifica o tamanho real do arquivo para calcular a fragmentação interna, ajustando a visualização para blocos parcialmente preenchidos 
+            // verifica o tamanho real do arquivo para calcular a fragmentação interna
+            // ajustando a visualização para blocos parcialmente preenchidos 
             auto itSizes = fileSizesBytes.find(file.name);
             
             if (itSizes != fileSizesBytes.end()) {
@@ -561,7 +562,10 @@ void criarArquivoIndexado(vector<int>& disk, unordered_map<string, File>& files,
 }
 
 // deletar arquivo para cada método de alocação
-void deleteArquivo(vector<int>& disk, unordered_map<string, File>& filesContiguous, unordered_map<string, File>& filesEncadeados, unordered_map<string, File>& filesIndexados) {
+void deleteArquivo(vector<int>& disk, 
+                   unordered_map<string, File>& filesContiguous, 
+                   unordered_map<string, File>& filesEncadeados, 
+                   unordered_map<string, File>& filesIndexados) {
     // solicita o nome do arquivo a ser deletado
     string fileName;
     cout << "Digite o nome do arquivo a ser deletado: ";
@@ -729,7 +733,11 @@ void displayDiretorioIndexado(const unordered_map<string, File>& files) {
 }
 
 // estender arquivo para cada método de alocação
-void estenderArquivoContiguo(vector<int>& disk, unordered_map<string, File>& filesContiguous, unordered_map<string, int>& fileSizesBytes, int blockSize, unordered_map<string, tuple<int,int>>& tabelaDiretorio) {
+void estenderArquivoContiguo(vector<int>& disk, 
+                             unordered_map<string, File>& filesContiguous, 
+                             unordered_map<string, int>& fileSizesBytes, 
+                             int blockSize, 
+                             unordered_map<string, tuple<int,int>>& tabelaDiretorio) {
     // solicita o nome do arquivo e o número de bytes a serem adicionados
     string fileName;
     int adicionalBytes;
@@ -817,7 +825,12 @@ void estenderArquivoContiguo(vector<int>& disk, unordered_map<string, File>& fil
     }
 }
 
-void estenderArquivoEncadeado(vector<int>& disk, unordered_map<string, File>& filesEncadeados, unordered_map<string, int>& fileSizesBytes, int blockSize, unordered_map<string, tuple<int,int>>& tabelaDiretorio) {
+void estenderArquivoEncadeado(vector<int>& disk, 
+                              unordered_map<string,File>& filesEncadeados, 
+                              unordered_map<string, int>& fileSizesBytes, 
+                              int blockSize, 
+                              unordered_map<string, 
+                              tuple<int,int>>& tabelaDiretorio) {
     // solicita o nome do arquivo e o número de bytes a serem adicionados
     string fileName;
     int adicionalBytes;
@@ -917,7 +930,11 @@ void estenderArquivoEncadeado(vector<int>& disk, unordered_map<string, File>& fi
     displayEncadeado(disk, filesEncadeados); // mostra o disco atualizado
 }
 
-void estenderArquivoIndexado(vector<int>& disk, unordered_map<string, File>& filesIndexados, unordered_map<string, int>& fileSizesBytes, int blockSize, unordered_map<string, tuple<int,int>>& tabelaDiretorio) {
+void estenderArquivoIndexado(vector<int>& disk, 
+                             unordered_map<string, File>& filesIndexados, 
+                             unordered_map<string, int>& fileSizesBytes, 
+                             int blockSize, unordered_map<string, 
+                             tuple<int,int>>& tabelaDiretorio) {
     // solicita o nome do arquivo e o número de bytes a serem adicionados
     string fileName;
     int adicionalBytes;
@@ -962,7 +979,9 @@ void estenderArquivoIndexado(vector<int>& disk, unordered_map<string, File>& fil
     int entradasAtuais = file.dataBlocks.size();
     if (entradasAtuais + blocosAdicionais > maxEntradasIndice) {
         cout << "Erro: Não é possível estender, bloco índice cheio!" << endl;
-        cout << "Entradas atuais: " << entradasAtuais << ", blocos a adicionar: " << blocosAdicionais << ", limite máximo: " << maxEntradasIndice << endl;
+        cout << "Entradas atuais: " << entradasAtuais 
+             << ", blocos a adicionar: " << blocosAdicionais 
+             << ", limite máximo: " << maxEntradasIndice << endl;
         return;
     }
 
@@ -1004,7 +1023,11 @@ void estenderArquivoIndexado(vector<int>& disk, unordered_map<string, File>& fil
 }
 
 // simular leitura dos arquivos para cada método de alocação
-void simularLeituraContiguo(const unordered_map<string, File>& filesContiguous, const unordered_map<string, int>& fileSizesBytes, int blockSize, int t_sequencial = 1, int t_aleatorio = 6){
+void simularLeituraContiguo(const unordered_map<string, File>& filesContiguous, 
+                            const unordered_map<string, int>& fileSizesBytes, 
+                            int blockSize, 
+                            int t_sequencial = 1, 
+                            int t_aleatorio = 6) {
     // solicita o nome do arquivo a ser lido
     string fileName;
     cout << "Digite o nome do arquivo para simular a leitura: ";
@@ -1061,11 +1084,18 @@ void simularLeituraContiguo(const unordered_map<string, File>& filesContiguous, 
         int passosAleatorios = 1; // acesso direto
         int tempoAleatorio = t_aleatorio;
 
-        cout << "Acesso aleatório ao bloco " << blocoReal << ": " << passosAleatorios << " passo | " << tempoAleatorio << " ms\n";
+        cout << "Acesso aleatório ao bloco " << blocoReal << ": " 
+             << passosAleatorios << " passo | " 
+             << tempoAleatorio << " ms\n";
     }
 }
 
-void simularLeituraEncadeado(const vector<int>& disk, const unordered_map<string, File>& filesEncadeados, const unordered_map<string, int>& fileSizesBytes, int blockSize, int t_sequencial = 1, int t_aleatorio = 5) {
+void simularLeituraEncadeado(const vector<int>& disk, 
+                             const unordered_map<string, File>& filesEncadeados, 
+                             const unordered_map<string, int>& fileSizesBytes, 
+                             int blockSize, 
+                             int t_sequencial = 1, 
+                             int t_aleatorio = 5) {
     // solicita o nome do arquivo a ser lido
     string fileName;
     cout << "Digite o nome do arquivo para simular a leitura: ";
@@ -1125,7 +1155,8 @@ void simularLeituraEncadeado(const vector<int>& disk, const unordered_map<string
         int passosAleatorios = (indiceDesejado + 1) * 2 - 1;
         int tempoAleatorio = (indiceDesejado + 1) * t_aleatorio;
 
-        cout << "Acesso aleatório ao bloco " << blocoReal << ": " << passosAleatorios << " passos | " << tempoAleatorio << " ms\n";
+        cout << "Acesso aleatório ao bloco " << blocoReal << ": " << passosAleatorios 
+             << " passos | " << tempoAleatorio << " ms\n";
 
         // percurso da cadeia encadeada até o bloco desejado
         cout << "Percurso até o bloco desejado: ";
@@ -1140,7 +1171,12 @@ void simularLeituraEncadeado(const vector<int>& disk, const unordered_map<string
     }
 }
 
-void simularLeituraIndexado(const unordered_map<string, File>& filesIndexados, const unordered_map<string, int>& fileSizesBytes, int blockSize, int t_sequencial = 1, int t_aleatorio = 5, int t_indice = 5) {
+void simularLeituraIndexado(const unordered_map<string, File>& filesIndexados, 
+                            const unordered_map<string, int>& fileSizesBytes, 
+                            int blockSize, 
+                            int t_sequencial = 1, 
+                            int t_aleatorio = 5, 
+                            int t_indice = 5) {
     // solicita o nome do arquivo a ser lido
     string fileName;
     cout << "Digite o nome do arquivo para simular a leitura: ";
@@ -1197,7 +1233,8 @@ void simularLeituraIndexado(const unordered_map<string, File>& filesIndexados, c
     }
 }
 
-// menu principal do simulador com as opções de executar operações em arquivos, permitindo escolher o método de alocação e tamanho do disco
+// menu principal do simulador com as opções de executar operações em arquivos, permitindo 
+// o usuário escolher o método de alocação e tamanho do disco
 int main() {
     int diskSizeBytes;
     
@@ -1224,7 +1261,8 @@ int main() {
     // calcula o número de blocos do disco (tamanho do bloco fixo de 8 bytes)
     int diskSizeBlocks = (diskSizeBytes + tamanhoBloco - 1) / tamanhoBloco;
     
-    cout << "Disco de " << diskSizeBytes << " bytes criado com " << diskSizeBlocks << "blocos de " << tamanhoBloco << " bytes.\n ";
+    cout << "Disco de " << diskSizeBytes << " bytes criado com " << diskSizeBlocks 
+         << "blocos de " << tamanhoBloco << " bytes.\n ";
     
     // inicializa o disco com -1 (bloco livre)
     vector<int> disk(diskSizeBlocks, -1);
