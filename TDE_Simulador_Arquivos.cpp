@@ -41,7 +41,7 @@ unordered_map<string, tuple<int, int>> tabelaDiretorio;
 unordered_map<string, int> fileSizesBytes;
 
 // display no terminal para cada método de alocação
-void displayContiguo(const vector<int> &disk, const unordered_map<string, File>& files) {
+void displayContiguo(const vector<int>& disk, const unordered_map<string, File>& files) {
     cout << "Memória Contígua:" << endl;
 
     int totalBytesLivres = 0;
@@ -53,7 +53,7 @@ void displayContiguo(const vector<int> &disk, const unordered_map<string, File>&
         } else { // bloco ocupado
             int startBlock = disk[i];
             
-            auto it = find_if(files.begin(), files.end(), [startBlock](const auto &p) { 
+            auto it = find_if(files.begin(), files.end(), [startBlock](const auto& p) { 
                 return p.second.startBlock == startBlock; 
             });
             
@@ -116,7 +116,7 @@ void displayContiguo(const vector<int> &disk, const unordered_map<string, File>&
     cout << "Total de bytes livres no disco: " << totalBytesLivres << " bytes" << endl;
 }
 
-void displayEncadeado(const vector<int> &disk, const unordered_map<string, File>& files) {
+void displayEncadeado(const vector<int>& disk, const unordered_map<string, File>& files) {
     cout << "Memória Encadeada:" << endl;
     
     // map que associa cada bloco a uma tuple: (nome do arquivo, posição na cadeia, tamanho da cadeia, bytes usados)
@@ -147,6 +147,7 @@ void displayEncadeado(const vector<int> &disk, const unordered_map<string, File>
         
         int fileBytes = 0;
         auto itSizes = fileSizesBytes.find(nome);
+        
         // obtém o tamanho real do arquivo em bytes
         if (itSizes != fileSizesBytes.end())
             fileBytes = itSizes->second;
@@ -155,6 +156,7 @@ void displayEncadeado(const vector<int> &disk, const unordered_map<string, File>
         
         for (int idx = 0; idx < chainSize; ++idx) {
             int bytesUsed = tamanhoBloco;
+            
             // calcula bytes usados no último bloco da cadeia para visualização correta e parcial do bloco
             if (idx == chainSize - 1) {
                 int bytesBefore = (chainSize - 1) * tamanhoBloco;
@@ -197,7 +199,7 @@ void displayEncadeado(const vector<int> &disk, const unordered_map<string, File>
         for (int b = bytesUsed; b < tamanhoBloco; ++b)
             cout << "░";
         
-        cout << "\033[0m";  // reset da cor
+        cout << "\033[0m"; // reset da cor
 
         int prox = disk[i]; // próximo bloco na cadeia
         
@@ -251,8 +253,7 @@ void displayIndexado(const vector<int> &disk, const unordered_map<string, File>&
                 continue;
             int bytesUsed = tamanhoBloco;
             
-            if (idx == totalBlocks - 1)
-            {
+            if (idx == totalBlocks - 1) {
                 // último bloco - calcula bytes usados para visualização correta
                 int before = (totalBlocks - 1) * tamanhoBloco;
                 bytesUsed = fileBytes - before;
@@ -268,7 +269,7 @@ void displayIndexado(const vector<int> &disk, const unordered_map<string, File>&
     int totalBytesLivres = 0;
 
     for (size_t i = 0; i < disk.size(); ++i) {
-        // percoore cada bloco do disco para exibir
+        // percorre cada bloco do disco para exibir
         auto itInfo = blockInfo.find(static_cast<int>(i));
         
         if (itInfo == blockInfo.end()) {
@@ -327,7 +328,7 @@ void displayIndexado(const vector<int> &disk, const unordered_map<string, File>&
 }
 
 // criar arquivo para cada método de alocação
-void criarArquivoContiguo(vector<int> &disk, unordered_map<string, File>& files, int& fileID) {
+void criarArquivoContiguo(vector<int>& disk, unordered_map<string, File>& files, int& fileID) {
     // solicita nome e tamanho do arquivo
     string fileName;
     int tamanhoBytes;
@@ -373,18 +374,17 @@ void criarArquivoContiguo(vector<int> &disk, unordered_map<string, File>& files,
             newFile.startBlock = i;
             newFile.size = tamanhoBlocos;
             newFile.name = fileName;
-            // obtém uma cor para o arquivo
-            newFile.color = getFileColor(fileID++);
+            newFile.color = getFileColor(fileID++); // obtém uma cor para o arquivo
             
             // marca os blocos no disco como ocupados pelo arquivo
             for (int j = 0; j < tamanhoBlocos; ++j) {
                 disk[i + j] = i;
             }
 
-            // adiciona o arquivo ao map de arquivos (files - parâmetro da função)
+            // adiciona o arquivo ao map de arquivos files
             files[fileName] = newFile;
-            // atualiza a tabela de diretório
-            tabelaDiretorio[fileName] = make_tuple(i, tamanhoBlocos);
+            
+            tabelaDiretorio[fileName] = make_tuple(i, tamanhoBlocos); // atualiza a tabela de diretório
             fileSizesBytes[fileName] = tamanhoBytes;
             
             cout << "Arquivo criado com sucesso!" << endl;
@@ -440,7 +440,7 @@ void criarArquivoEncadeado(vector<int>& disk, unordered_map<string, File>& files
         return;
     }
 
-    // embaralha os blocos livres para distribuir aleatoriamente (blocos não precisam ser contíguos no disco)
+    // embaralha os blocos livres para distribuir aleatoriamente
     random_device rd;
     mt19937 g(rd());
     shuffle(freeBlocks.begin(), freeBlocks.end(), g);
@@ -459,10 +459,9 @@ void criarArquivoEncadeado(vector<int>& disk, unordered_map<string, File>& files
     }
 
     disk[prevBlock] = -2; // marca o fim da cadeia/arquivo
-
-    // obtém uma cor para o arquivo
-    string color = getFileColor(fileID++);
     
+    string color = getFileColor(fileID++); // obtém uma cor para o arquivo
+
     // cria e inicializa o arquivo
     File newFile;
     newFile.startBlock = dataBlocks[0];
@@ -471,11 +470,10 @@ void criarArquivoEncadeado(vector<int>& disk, unordered_map<string, File>& files
     newFile.name = fileName;
     newFile.color = color;
 
-    // atualiza a tabela de diretório
-    tabelaDiretorio[fileName] = make_tuple(dataBlocks[0], tamanhoBlocos);
+    tabelaDiretorio[fileName] = make_tuple(dataBlocks[0], tamanhoBlocos); // atualiza a tabela de diretório
     fileSizesBytes[fileName] = tamanhoBytes;
     
-    // adiciona o arquivo ao map de arquivos (files - parâmetro da função)
+    // adiciona o arquivo ao map de arquivos files
     files[fileName] = newFile;
 
     cout << "Arquivo criado com sucesso!" << endl;
@@ -502,15 +500,15 @@ void criarArquivoIndexado(vector<int>& disk, unordered_map<string, File>& files,
     // calcula o número de blocos necessários (arredondando para cima)
     int tamanhoBlocos = (tamanhoBytes + tamanhoBloco - 1) / tamanhoBloco;
 
-    // verifica o bloco índice (suporta no máximo 8 blocos de dados/endereços)
-    if (tamanhoBlocos > 8) {
-        cout << "Erro: O bloco de índice só pode armazenar até 8 endereços de blocos de dados!" << endl;
-        return;
-    }
-
     // verifica se o arquivo cabe no disco
     if (tamanhoBlocos > static_cast<int>(disk.size())) {
         cout << "Erro: Tamanho do arquivo maior que o tamanho do disco!" << endl;
+        return;
+    }
+
+    // verifica o bloco índice (suporta no máximo 8 blocos de dados/endereços)
+    if (tamanhoBlocos > 8) {
+        cout << "Erro: O bloco de índice só pode armazenar até 8 endereços de blocos de dados!" << endl;
         return;
     }
 
@@ -542,8 +540,8 @@ void criarArquivoIndexado(vector<int>& disk, unordered_map<string, File>& files,
     newFile.indexBlock = indexBlock;
     newFile.name = fileName;
     newFile.size = tamanhoBlocos;
-    // obtém uma cor para o arquivo
-    newFile.color = getFileColor(fileID++);
+    
+    newFile.color = getFileColor(fileID++); // obtém uma cor para o arquivo
     
     // atribui os blocos de dados e aponta para o bloco índice
     for (int i = 0; i < tamanhoBlocos; ++i) {
@@ -553,13 +551,13 @@ void criarArquivoIndexado(vector<int>& disk, unordered_map<string, File>& files,
 
     disk[indexBlock] = -2; // marca o fim do bloco índice
 
-    // adiciona o arquivo ao map de arquivos
+    // adiciona o arquivo ao map de arquivos files
     files[fileName] = newFile;
-    tabelaDiretorio[fileName] = make_tuple(indexBlock, tamanhoBlocos);
+    tabelaDiretorio[fileName] = make_tuple(indexBlock, tamanhoBlocos); // atualiza a tabela de diretório
     fileSizesBytes[fileName] = tamanhoBytes;
 
     cout << "Arquivo criado com sucesso!" << endl;
-    displayIndexado(disk, files);
+    displayIndexado(disk, files); // mostra o disco atualizado
 }
 
 // deletar arquivo para cada método de alocação
@@ -577,7 +575,7 @@ void deleteArquivo(vector<int>& disk, unordered_map<string, File>& filesContiguo
             disk[i] = -1;
         }
         
-        // remove o arquivo do map filesContiguos (parâmetro da função) e tabela de diretório
+        // remove o arquivo do map filesContiguos
         filesContiguous.erase(fileName);
         tabelaDiretorio.erase(fileName);
 
@@ -591,7 +589,8 @@ void deleteArquivo(vector<int>& disk, unordered_map<string, File>& filesContiguo
         }
         
         disk[file.startBlock] = -1; 
-        // remove o arquivo do map filesEncadeados (parâmetro da função) e tabela de diretório
+        
+        // remove o arquivo do map filesEncadeados e tabela de diretório
         filesEncadeados.erase(fileName);
         tabelaDiretorio.erase(fileName);
 
@@ -605,7 +604,7 @@ void deleteArquivo(vector<int>& disk, unordered_map<string, File>& filesContiguo
             disk[block] = -1;
         }
 
-        // remove o arquivo do map filesIndexados (parâmetro da função) e tabela de diretório
+        // remove o arquivo do map filesIndexados e tabela de diretório
         filesIndexados.erase(fileName);
         tabelaDiretorio.erase(fileName);
 
@@ -852,13 +851,18 @@ void estenderArquivoEncadeado(vector<int>& disk, unordered_map<string, File>& fi
     // aproveita o espaço do último bloco parcial
     if (restanteBytes <= espacoLivreUltimoBloco) {
         fileSizesBytes[fileName] += restanteBytes;
+        
+        // atualiza tamanho total e fragmentação
         file.fragmentacao = (file.dataBlocks.size() * blockSize) - fileSizesBytes[fileName];
-        tabelaDiretorio[fileName] = make_tuple(file.startBlock, (int)file.dataBlocks.size());
+
+        tabelaDiretorio[fileName] = make_tuple(file.startBlock, (int)file.dataBlocks.size()); // atualiza a tabela de diretório
+        
         cout << "Arquivo estendido com sucesso!" << endl;
-        displayEncadeado(disk, filesEncadeados);
+        displayEncadeado(disk, filesEncadeados); // mostra o disco atualizado
         return;
     } else {
         if (espacoLivreUltimoBloco > 0) {
+            // preenche o que falta do último bloco
             fileSizesBytes[fileName] += espacoLivreUltimoBloco;
             restanteBytes -= espacoLivreUltimoBloco;
         }
@@ -958,9 +962,7 @@ void estenderArquivoIndexado(vector<int>& disk, unordered_map<string, File>& fil
     int entradasAtuais = file.dataBlocks.size();
     if (entradasAtuais + blocosAdicionais > maxEntradasIndice) {
         cout << "Erro: Não é possível estender, bloco índice cheio!" << endl;
-        cout << "Entradas atuais: " << entradasAtuais 
-             << ", blocos a adicionar: " << blocosAdicionais 
-             << ", limite máximo: " << maxEntradasIndice << endl;
+        cout << "Entradas atuais: " << entradasAtuais << ", blocos a adicionar: " << blocosAdicionais << ", limite máximo: " << maxEntradasIndice << endl;
         return;
     }
 
@@ -1047,7 +1049,7 @@ void simularLeituraContiguo(const unordered_map<string, File>& filesContiguous, 
 
     cout << "]\n";
 
-    // acesso aleatório - solicita o índice do bloco a ser acessado aleatoriamente
+    // acesso aleatório: solicita o índice do bloco a ser acessado aleatoriamente
     int indiceDesejado;
     cout << "Digite o índice do bloco que deseja acessar (0 = primeiro bloco): ";
     cin >> indiceDesejado;
@@ -1186,7 +1188,6 @@ void simularLeituraIndexado(const unordered_map<string, File>& filesIndexados, c
         cout << "Índice inválido. Digite um valor entre 0 e " << static_cast<int>(blocosArquivo.size()) - 1 << ".\n";
     } else {
         int blocoReal = blocosArquivo[indiceDesejado];
-
         int tempoBloco = t_indice + t_aleatorio;
 
         cout << "Tempo para acessar o bloco " << blocoReal << " aleatoriamente: " << tempoBloco << " ms\n";
