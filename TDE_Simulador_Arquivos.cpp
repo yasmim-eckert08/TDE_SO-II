@@ -1359,7 +1359,7 @@ int main() {
                 cout << "Encerrando o programa..." << endl;
                 return 0;
             default:
-                cout << "Opção inválida! Digite um número entre 1 e 7.!\n" << endl;
+                cout << "Opção inválida! Digite um número entre 1 e 7.\n" << endl;
         }
     }
     
