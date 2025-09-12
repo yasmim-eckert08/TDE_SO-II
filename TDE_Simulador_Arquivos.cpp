@@ -84,7 +84,6 @@ struct File {
  bool promptCreateCommon(
     const unordered_map<string, File>& files,
     const vector<int>& disk,
-    int blocoSize,
     string& fileNameOut,
     int& tamanhoBytesOut,
     int& tamanhoBlocosOut)
@@ -102,7 +101,7 @@ struct File {
     cin >> tamanhoBytesOut;
 
     // calcula o número de blocos necessários (arredondando para cima)
-    tamanhoBlocosOut = (tamanhoBytesOut + blocoSize - 1) / blocoSize;
+    tamanhoBlocosOut = (tamanhoBytesOut + TAMANHO_BLOCO - 1) / TAMANHO_BLOCO;
 
     // verifica se o arquivo cabe no disco
     if (tamanhoBlocosOut > static_cast<int>(disk.size())) {
@@ -156,9 +155,6 @@ string getFileColor(int fileID) {
 // map que associa cada arquivo a uma tuple (startBlock, size) representando a tabela de diretório
 unordered_map<string, tuple<int, int>> tabelaDiretorio;
 
-// map para armazenar o tamanho real de cada arquivo em bytes
-unordered_map<string, int> fileSizesBytes;
-
 // display no terminal para cada método de alocação
 void displayContiguo(const vector<int>& disk, const unordered_map<string, File>& files) {
     cout << "Memória Contígua:" << endl;
@@ -186,18 +182,12 @@ void displayContiguo(const vector<int>& disk, const unordered_map<string, File>&
 
             int bytesUsed = TAMANHO_BLOCO;
 
-            // verifica o tamanho real do arquivo para calcular a fragmentação interna
-            // ajustando a visualização para blocos parcialmente preenchidos 
-            auto itSizes = fileSizesBytes.find(file.name);
-            
-            if (itSizes != fileSizesBytes.end()) {
-                int totalBytes = itSizes->second;
+                int totalBytes = file.sizeBytes;
                 int totalBlocks = file.size;
                 int lastBlockIndexAbs = file.startBlock + file.size - 1;
                 if (static_cast<int>(i) == lastBlockIndexAbs) {
                     bytesUsed = bytesUsedForBlock(totalBytes, totalBlocks - 1, totalBlocks);
                 }
-            }
 
             // imprime o bloco com cor e caracteres representando bytes usados e livres
             printColoredBlockBar(i, file.color, bytesUsed);
@@ -252,20 +242,14 @@ void displayEncadeado(const vector<int>& disk, const unordered_map<string, File>
         if (chain.empty())
             continue;
         
-        int fileBytes = 0;
-        auto itSizes = fileSizesBytes.find(nome);
-        
-        // obtém o tamanho real do arquivo em bytes
-        if (itSizes != fileSizesBytes.end())
-            fileBytes = itSizes->second;
-        
+
         int chainSize = static_cast<int>(chain.size());
         
         for (int idx = 0; idx < chainSize; ++idx) {
             int bytesUsed = TAMANHO_BLOCO;
-            
+
             // calcula bytes usados no último bloco da cadeia para visualização correta e parcial do bloco
-            bytesUsed = bytesUsedForBlock(fileBytes, idx, chainSize);
+            bytesUsed = bytesUsedForBlock(file.sizeBytes, idx, chainSize);
             blockInfo[chain[idx]] = make_tuple(nome, idx, chainSize, bytesUsed);
         }
     }
@@ -329,13 +313,7 @@ void displayIndexado(const vector<int> &disk, const unordered_map<string, File>&
             blockInfo[file.indexBlock] = make_tuple(nome, 1, TAMANHO_BLOCO);
         }
 
-        // obtém o tamanho real do arquivo em bytes
-        int fileBytes = 0;
-        auto itSize = fileSizesBytes.find(nome);
 
-        if (itSize != fileSizesBytes.end())
-            fileBytes = itSize->second;
-        
         // registra cada bloco de dados do arquivo
         int totalBlocks = static_cast<int>(file.dataBlocks.size());
         
@@ -347,7 +325,7 @@ void displayIndexado(const vector<int> &disk, const unordered_map<string, File>&
             
             if (idx == totalBlocks - 1) {
                 // último bloco - calcula bytes usados para visualização correta
-                bytesUsed = bytesUsedForBlock(fileBytes, idx, totalBlocks);
+                bytesUsed = bytesUsedForBlock(file.sizeBytes, idx, totalBlocks);
             }
             blockInfo[blk] = make_tuple(nome, 0, bytesUsed);
         }
@@ -415,7 +393,7 @@ void criarArquivoContiguo(vector<int>& disk, unordered_map<string, File>& files,
     int tamanhoBytes;
     int tamanhoBlocos;
 
-    if (!promptCreateCommon(files, disk, TAMANHO_BLOCO, fileName, tamanhoBytes, tamanhoBlocos)) {
+    if (!promptCreateCommon(files, disk,  fileName, tamanhoBytes, tamanhoBlocos)) {
         return;
     }
 
@@ -440,7 +418,7 @@ void criarArquivoContiguo(vector<int>& disk, unordered_map<string, File>& files,
             newFile.size = tamanhoBlocos;
             newFile.name = fileName;
             newFile.color = getFileColor(fileID++); // obtém uma cor para o arquivo
-            
+            newFile.sizeBytes = tamanhoBytes;
             // marca os blocos no disco como ocupados pelo arquivo
             for (int j = 0; j < tamanhoBlocos; ++j) {
                 disk[i + j] = i;
@@ -450,8 +428,7 @@ void criarArquivoContiguo(vector<int>& disk, unordered_map<string, File>& files,
             files[fileName] = newFile;
             
             tabelaDiretorio[fileName] = make_tuple(i, tamanhoBlocos); // atualiza a tabela de diretório
-            fileSizesBytes[fileName] = tamanhoBytes;
-            
+
             cout << "Arquivo criado com sucesso!" << endl;
             displayContiguo(disk, files); // mostra o disco atualizado
             allocated = true;
@@ -471,7 +448,7 @@ void criarArquivoEncadeado(vector<int>& disk, unordered_map<string, File>& files
     int tamanhoBytes;
     int tamanhoBlocos;
 
-    if (!promptCreateCommon(files, disk, TAMANHO_BLOCO, fileName, tamanhoBytes, tamanhoBlocos)) {
+    if (!promptCreateCommon(files, disk,  fileName, tamanhoBytes, tamanhoBlocos)) {
         return;
     }
 
@@ -511,10 +488,10 @@ void criarArquivoEncadeado(vector<int>& disk, unordered_map<string, File>& files
     newFile.size = tamanhoBlocos;
     newFile.name = fileName;
     newFile.color = color;
+    newFile.sizeBytes = tamanhoBytes;
 
     tabelaDiretorio[fileName] = make_tuple(dataBlocks[0], tamanhoBlocos); // atualiza a tabela de diretório
-    fileSizesBytes[fileName] = tamanhoBytes;
-    
+
     // adiciona o arquivo ao map de arquivos files
     files[fileName] = newFile;
 
@@ -523,12 +500,11 @@ void criarArquivoEncadeado(vector<int>& disk, unordered_map<string, File>& files
 }
 
 void criarArquivoIndexado(vector<int>& disk, unordered_map<string, File>& files, int& fileID) {
-    // solicita nome e tamanho do arquivo (com validações comuns)
     string fileName;
     int tamanhoBytes;
     int tamanhoBlocos;
 
-    if (!promptCreateCommon(files, disk, TAMANHO_BLOCO, fileName, tamanhoBytes, tamanhoBlocos)) {
+    if (!promptCreateCommon(files, disk,  fileName, tamanhoBytes, tamanhoBlocos)) {
         return;
     }
 
@@ -561,7 +537,7 @@ void criarArquivoIndexado(vector<int>& disk, unordered_map<string, File>& files,
     newFile.size = tamanhoBlocos;
     
     newFile.color = getFileColor(fileID++); // obtém uma cor para o arquivo
-    
+    newFile.sizeBytes = tamanhoBytes;
     // atribui os blocos de dados e aponta para o bloco índice
     for (int i = 0; i < tamanhoBlocos; ++i) {
         newFile.dataBlocks.push_back(freeBlocks[i]);
@@ -573,14 +549,12 @@ void criarArquivoIndexado(vector<int>& disk, unordered_map<string, File>& files,
     // adiciona o arquivo ao map de arquivos files
     files[fileName] = newFile;
     tabelaDiretorio[fileName] = make_tuple(indexBlock, tamanhoBlocos); // atualiza a tabela de diretório
-    fileSizesBytes[fileName] = tamanhoBytes;
 
     cout << "Arquivo criado com sucesso!" << endl;
     displayIndexado(disk, files); // mostra o disco atualizado
 }
 
-// deletar arquivo para cada método de alocação
-void deleteArquivo(vector<int>& disk, 
+void deleteArquivo(vector<int>& disk,
                    unordered_map<string, File>& filesContiguous, 
                    unordered_map<string, File>& filesEncadeados, 
                    unordered_map<string, File>& filesIndexados) {
@@ -653,18 +627,11 @@ void displayDiretorioContiguo(const unordered_map<string, File>& files) {
     
     // percorre todos os arquivos para exibir suas informações
     for (const auto &[nome, file] : files) {
-        int tamanhoBytes = 0;
-        auto it = fileSizesBytes.find(nome);
-        
-        if (it != fileSizesBytes.end()) {
-            tamanhoBytes = it->second;
-        }
-
-        int fragmentacao = computeFragmentation(file.size, tamanhoBytes);
+         int fragmentacao = computeFragmentation(file.size, file.sizeBytes);
         cout << left << setw(20) << nome << "| "
              << right << setw(15) << file.startBlock << "| "
              << right << setw(17) << file.size << "| "
-             << right << setw(15) << tamanhoBytes << "| "
+             << right << setw(15) << file.sizeBytes << "| "
              << right << setw(12) << fragmentacao << "\n";
     }
 }
@@ -684,18 +651,12 @@ void displayDiretorioEncadeado(const unordered_map<string, File>& files) {
     
     // percorre todos os arquivos para exibir suas informações
     for (const auto &[nome, file] : files) {
-        int tamanhoBytes = 0;
-        auto it = fileSizesBytes.find(nome);
 
-        if (it != fileSizesBytes.end()) {
-            tamanhoBytes = it->second;
-        }
-
-        int fragmentacao = computeFragmentation(file.size, tamanhoBytes);
+        int fragmentacao = computeFragmentation(file.size, file.sizeBytes);
         cout << left << setw(20) << nome << "| "
              << right << setw(15) << file.startBlock << "| "
              << right << setw(17) << file.size << "| "
-             << right << setw(15) << tamanhoBytes << "| "
+             << right << setw(15) << file.sizeBytes << "| "
              << right << setw(22) << fragmentacao << "\n";
         
         // exibe a cadeia de blocos do arquivo
@@ -725,18 +686,13 @@ void displayDiretorioIndexado(const unordered_map<string, File>& files) {
     
     // percorre todos os arquivos para exibir suas informações
     for (const auto &[nome, file] : files) {
-        int tamanhoBytes = 0;
-        auto it = fileSizesBytes.find(nome);
-        
-        if (it != fileSizesBytes.end()) {
-            tamanhoBytes = it->second;
-        }
 
-        int fragmentacao = computeFragmentation(file.size, tamanhoBytes);
+
+        int fragmentacao = computeFragmentation(file.size, file.sizeBytes);
         cout << left << setw(20) << nome << "| "
              << right << setw(15) << file.indexBlock << "| "
              << right << setw(19) << file.size << "| "
-             << right << setw(19) << tamanhoBytes << "| "
+             << right << setw(19) << file.sizeBytes << "| "
              << right << setw(28) << fragmentacao << "\n";
         
         // exibe os blocos de dados do arquivo
@@ -753,8 +709,6 @@ void displayDiretorioIndexado(const unordered_map<string, File>& files) {
 // estender arquivo para cada método de alocação
 void estenderArquivoContiguo(vector<int>& disk, 
                              unordered_map<string, File>& filesContiguous, 
-                             unordered_map<string, int>& fileSizesBytes, 
-                             int blockSize, 
                              unordered_map<string, tuple<int,int>>& tabelaDiretorio) {
     // solicita o nome do arquivo e o número de bytes a serem adicionados
     string fileName;
@@ -770,18 +724,17 @@ void estenderArquivoContiguo(vector<int>& disk,
     int blocosOcupados = file.size;
     int discoTotalBlocos = (int)disk.size();
 
-    // tamanho atual em bytes
-    int tamanhoAtualBytes = fileSizesBytes[fileName];
+    int tamanhoAtualBytes = file.sizeBytes;
 
     // consumir espaço livre do último bloco, se houver
-    auto consumo = consumeLastBlockSpace(tamanhoAtualBytes, blockSize, adicionalBytes);
-    fileSizesBytes[fileName] += consumo.first;
+    auto consumo = consumeLastBlockSpace(tamanhoAtualBytes, TAMANHO_BLOCO, adicionalBytes);
+    file.sizeBytes += consumo.first;
     adicionalBytes = consumo.second;
 
     int blocosAdicionais = 0;
     if (adicionalBytes > 0) {
         // calcula blocos adicionais realmente necessários
-        blocosAdicionais = (adicionalBytes + blockSize - 1) / blockSize;
+        blocosAdicionais = (adicionalBytes + TAMANHO_BLOCO - 1) / TAMANHO_BLOCO;
     }
 
     int fimArquivo = start + blocosOcupados;
@@ -809,10 +762,10 @@ void estenderArquivoContiguo(vector<int>& disk,
         file.size += blocosAdicionais;
 
         // adiciona o restante dos bytes
-        fileSizesBytes[fileName] += adicionalBytes;
+        file.sizeBytes += adicionalBytes;
 
         // recalcula fragmentação interna
-        file.fragmentacao = (file.size * blockSize) - fileSizesBytes[fileName];
+        file.fragmentacao = (file.size * TAMANHO_BLOCO) - file.sizeBytes;
 
         // atualiza a tabela de diretório
         tabelaDiretorio[fileName] = make_tuple(file.startBlock, file.size);
@@ -826,9 +779,7 @@ void estenderArquivoContiguo(vector<int>& disk,
 
 void estenderArquivoEncadeado(vector<int>& disk, 
                               unordered_map<string,File>& filesEncadeados, 
-                              unordered_map<string, int>& fileSizesBytes, 
-                              int blockSize, 
-                              unordered_map<string, 
+                              unordered_map<string,
                               tuple<int,int>>& tabelaDiretorio) {
     // solicita o nome do arquivo e o número de bytes a serem adicionados
     string fileName;
@@ -840,14 +791,13 @@ void estenderArquivoEncadeado(vector<int>& disk,
     
     // referência ao arquivo
     File& file = filesEncadeados[fileName];
-    int bytesAtuais = fileSizesBytes[fileName];
-    auto consumo = consumeLastBlockSpace(bytesAtuais, blockSize, adicionalBytes);
-    fileSizesBytes[fileName] += consumo.first;
+    auto consumo = consumeLastBlockSpace(file.sizeBytes, TAMANHO_BLOCO, adicionalBytes);
+    file.sizeBytes += adicionalBytes;
     int restanteBytes = consumo.second;
 
     if (restanteBytes == 0) {
         // nada a alocar em novos blocos
-        file.fragmentacao = computeFragmentation((int)file.dataBlocks.size(), fileSizesBytes[fileName]);
+        file.fragmentacao = computeFragmentation((int)file.dataBlocks.size(), file.sizeBytes);
         tabelaDiretorio[fileName] = make_tuple(file.startBlock, (int)file.dataBlocks.size());
         cout << "Arquivo estendido com sucesso!" << endl;
         displayEncadeado(disk, filesEncadeados);
@@ -855,7 +805,7 @@ void estenderArquivoEncadeado(vector<int>& disk,
     }
 
     // calcula quantos blocos adicionais são necessários
-    int blocosAdicionais = (restanteBytes + blockSize - 1) / blockSize;
+    int blocosAdicionais = (restanteBytes + TAMANHO_BLOCO - 1) / TAMANHO_BLOCO;
 
     // busca blocos livres no disco
     vector<int> freeBlocks = collectFreeBlocks(disk);
@@ -887,9 +837,9 @@ void estenderArquivoEncadeado(vector<int>& disk,
     }
 
     // atualiza tamanho total e fragmentação
-    fileSizesBytes[fileName] += restanteBytes;
+    file.sizeBytes += restanteBytes;
     file.size = (int)file.dataBlocks.size();
-    file.fragmentacao = computeFragmentation(file.size, fileSizesBytes[fileName]);
+    file.fragmentacao = computeFragmentation(file.size, file.sizeBytes);
 
     // atualiza a tabela de diretório
     tabelaDiretorio[fileName] = make_tuple(file.startBlock, file.size);
@@ -900,8 +850,7 @@ void estenderArquivoEncadeado(vector<int>& disk,
 
 void estenderArquivoIndexado(vector<int>& disk, 
                              unordered_map<string, File>& filesIndexados, 
-                             unordered_map<string, int>& fileSizesBytes, 
-                             int blockSize, unordered_map<string, 
+                              unordered_map<string,
                              tuple<int,int>>& tabelaDiretorio) {
     // solicita o nome do arquivo e o número de bytes a serem adicionados
     string fileName;
@@ -913,13 +862,12 @@ void estenderArquivoIndexado(vector<int>& disk,
 
     // referência ao arquivo
     File& file = filesIndexados[fileName];
-    int bytesAtuais = fileSizesBytes[fileName];
-    auto consumo = consumeLastBlockSpace(bytesAtuais, blockSize, adicionalBytes);
-    fileSizesBytes[fileName] += consumo.first;
+    auto consumo = consumeLastBlockSpace(file.sizeBytes, TAMANHO_BLOCO, adicionalBytes);
+    file.sizeBytes += consumo.first;
     int restanteBytes = consumo.second;
 
     // calcula quantos blocos inteiros adicionais são necessários
-    int blocosAdicionais = (restanteBytes + blockSize - 1) / blockSize;
+    int blocosAdicionais = (restanteBytes + TAMANHO_BLOCO - 1) / TAMANHO_BLOCO;
 
     // limitando o bloco de índice (cada endereço ocupa 1 byte - máximo 8)
     // verifica se o bloco índice suporta os blocos adicionais
@@ -952,12 +900,12 @@ void estenderArquivoIndexado(vector<int>& disk,
             file.dataBlocks.push_back(bloco);
         }
 
-        fileSizesBytes[fileName] += restanteBytes;
+        file.sizeBytes += restanteBytes;
     }
 
     // atualiza tamanho total e fragmentação
     file.size = (int)file.dataBlocks.size();
-    file.fragmentacao = (file.size * blockSize) - fileSizesBytes[fileName];
+    file.fragmentacao = (file.size * TAMANHO_BLOCO) - file.sizeBytes;
     // atualiza a tabela de diretório
     tabelaDiretorio[fileName] = make_tuple(file.indexBlock, file.size);
 
@@ -967,9 +915,7 @@ void estenderArquivoIndexado(vector<int>& disk,
 
 // simular leitura dos arquivos para cada método de alocação
 void simularLeituraContiguo(const unordered_map<string, File>& filesContiguous, 
-                            const unordered_map<string, int>& fileSizesBytes, 
-                            int blockSize, 
-                            int t_sequencial = 1, 
+                            int t_sequencial = 1,
                             int t_aleatorio = 6) {
     // solicita o nome do arquivo a ser lido
     string fileName;
@@ -995,7 +941,7 @@ void simularLeituraContiguo(const unordered_map<string, File>& filesContiguous,
         return;
     }
 
-    int fragmentacao = computeFragmentation(file.size, fileSizesBytes.at(fileName));
+    int fragmentacao = computeFragmentation(file.size, file.sizeBytes);
 
     // tempo sequencial: percorre todos os blocos em sequência (1 passo por bloco)
     int passosSequenciais = (int)blocosArquivo.size();
@@ -1035,9 +981,7 @@ void simularLeituraContiguo(const unordered_map<string, File>& filesContiguous,
 
 void simularLeituraEncadeado(const vector<int>& disk, 
                              const unordered_map<string, File>& filesEncadeados, 
-                             const unordered_map<string, int>& fileSizesBytes, 
-                             int blockSize, 
-                             int t_sequencial = 1, 
+                             int t_sequencial = 1,
                              int t_aleatorio = 5) {
     // solicita o nome do arquivo a ser lido
     string fileName;
@@ -1066,7 +1010,7 @@ void simularLeituraEncadeado(const vector<int>& disk,
         return;
     }
 
-    int fragmentacao = computeFragmentation(file.size,  fileSizesBytes.at(fileName));
+    int fragmentacao = computeFragmentation(file.size,  file.sizeBytes);
 
      // custo sequencial: blocos + saltos de ponteiro
     int passosSequenciais = (int)blocosArquivo.size() * 2 - 1; 
@@ -1115,10 +1059,8 @@ void simularLeituraEncadeado(const vector<int>& disk,
 }
 
 void simularLeituraIndexado(const unordered_map<string, File>& filesIndexados, 
-                            const unordered_map<string, int>& fileSizesBytes, 
-                            int blockSize, 
-                            int t_sequencial = 1, 
-                            int t_aleatorio = 5, 
+                            int t_sequencial = 1,
+                            int t_aleatorio = 5,
                             int t_indice = 5) {
     // solicita o nome do arquivo a ser lido
     string fileName;
@@ -1139,7 +1081,7 @@ void simularLeituraIndexado(const unordered_map<string, File>& filesIndexados,
         return;
     }
 
-    int fragmentacao = computeFragmentation(file.size, fileSizesBytes.at(fileName));
+    int fragmentacao = computeFragmentation(file.size, file.sizeBytes);
 
     // leitura sequencial: ler bloco de índice + percorrer todos os blocos do arquivo
     int passosSequenciais = 1 + (int)blocosArquivo.size();
@@ -1284,19 +1226,19 @@ int main() {
                 } break;
             case 5:
                 if (tipoAlocacao == 1) {
-                    estenderArquivoContiguo(disk, filesContiguous, fileSizesBytes, TAMANHO_BLOCO, tabelaDiretorio);
+                    estenderArquivoContiguo(disk, filesContiguous,   tabelaDiretorio);
                 } else if (tipoAlocacao == 2) {
-                    estenderArquivoEncadeado(disk, filesEncadeados, fileSizesBytes, TAMANHO_BLOCO, tabelaDiretorio);
+                    estenderArquivoEncadeado(disk, filesEncadeados,   tabelaDiretorio);
                 } else if (tipoAlocacao == 3) {
-                    estenderArquivoIndexado(disk, filesIndexados, fileSizesBytes, TAMANHO_BLOCO, tabelaDiretorio);
+                    estenderArquivoIndexado(disk, filesIndexados,   tabelaDiretorio);
                 } break;
             case 6: 
                 if (tipoAlocacao == 1) {
-                    simularLeituraContiguo(filesContiguous, fileSizesBytes, TAMANHO_BLOCO);
+                    simularLeituraContiguo(filesContiguous );
                 } else if (tipoAlocacao == 2) {
-                    simularLeituraEncadeado(disk, filesEncadeados, fileSizesBytes, TAMANHO_BLOCO);
+                    simularLeituraEncadeado(disk, filesEncadeados );
                 } else if (tipoAlocacao == 3) {
-                    simularLeituraIndexado(filesIndexados, fileSizesBytes, TAMANHO_BLOCO);
+                    simularLeituraIndexado(filesIndexados);
                 } break;
             case 7:
                 cout << "Encerrando o programa..." << endl;
@@ -1306,5 +1248,4 @@ int main() {
         }
     }
     
-    return 0;
 }
