@@ -7,7 +7,6 @@
 #include <random>
 using namespace std;
 
-const int tamanhoBloco = 8; // 8 bytes por bloco (valor fixo)
 
 
 struct File;
@@ -15,26 +14,27 @@ struct File;
 
 constexpr int BLOCO_LIVRE = -1;
 constexpr int FIM_CADEIA = -2;
+constexpr int TAMANHO_BLOCO = 8;
 
- int computeFragmentation(int blocks, int blockSize, int fileBytes) {
-    return blocks * blockSize - fileBytes;
+ int computeFragmentation(int blocks, int fileBytes) {
+    return blocks * TAMANHO_BLOCO - fileBytes;
 }
 
- int bytesUsedForBlock(int fileBytes, int idx, int totalBlocks, int blockSize) {
-    int bytesUsed = blockSize;
+ int bytesUsedForBlock(int fileBytes, int idx, int totalBlocks) {
+    int bytesUsed = TAMANHO_BLOCO;
     if (idx == totalBlocks - 1) {
-        int bytesBefore = (totalBlocks - 1) * blockSize;
+        int bytesBefore = (totalBlocks - 1) * TAMANHO_BLOCO;
         bytesUsed = fileBytes - bytesBefore;
         if (bytesUsed < 0) bytesUsed = 0;
-        if (bytesUsed > blockSize) bytesUsed = blockSize;
+        if (bytesUsed > TAMANHO_BLOCO) bytesUsed = TAMANHO_BLOCO;
     }
     return bytesUsed;
 }
 
- void printColoredBlockBar(size_t blockIdx, const string& color, int bytesUsed, int blockSize) {
+ void printColoredBlockBar(size_t blockIdx, const string& color, int bytesUsed) {
     cout << "[" << blockIdx << "] " << color;
     for (int b = 0; b < bytesUsed; ++b) cout << "█";
-    for (int b = bytesUsed; b < blockSize; ++b) cout << "░";
+    for (int b = bytesUsed; b < TAMANHO_BLOCO; ++b) cout << "░";
     cout << "\033[0m"; // reset cor
 }
 
@@ -73,13 +73,14 @@ struct File {
     int indexBlock = -1;
     int startBlock = -1;
     vector<int> dataBlocks;
-    int size = 0;
+    int size = 0;            // em blocos
+    int sizeBytes = 0;       // novo: tamanho real em bytes
     string name;
     string color;
     int fragmentacao = 0;
 };
 
-// Entrada comum para criar arquivos: nome, tamanho em bytes, validações e cálculo de blocos
+
  bool promptCreateCommon(
     const unordered_map<string, File>& files,
     const vector<int>& disk,
@@ -111,7 +112,7 @@ struct File {
     return true;
 }
 
-// Entrada comum para estender arquivos: nome (deve existir) e bytes adicionais (>0)
+
 
 template <typename Map>
  bool promptExtendCommon(const Map& files,
@@ -168,7 +169,7 @@ void displayContiguo(const vector<int>& disk, const unordered_map<string, File>&
         if (disk[i] == BLOCO_LIVRE) { // bloco livre
             printFreeBlock(i);
             cout << endl;
-            totalBytesLivres += tamanhoBloco;
+            totalBytesLivres += TAMANHO_BLOCO;
         } else { // bloco ocupado
             int startBlock = disk[i];
             
@@ -183,7 +184,7 @@ void displayContiguo(const vector<int>& disk, const unordered_map<string, File>&
             
             const File& file = it->second;
 
-            int bytesUsed = tamanhoBloco;
+            int bytesUsed = TAMANHO_BLOCO;
 
             // verifica o tamanho real do arquivo para calcular a fragmentação interna
             // ajustando a visualização para blocos parcialmente preenchidos 
@@ -194,12 +195,12 @@ void displayContiguo(const vector<int>& disk, const unordered_map<string, File>&
                 int totalBlocks = file.size;
                 int lastBlockIndexAbs = file.startBlock + file.size - 1;
                 if (static_cast<int>(i) == lastBlockIndexAbs) {
-                    bytesUsed = bytesUsedForBlock(totalBytes, totalBlocks - 1, totalBlocks, tamanhoBloco);
+                    bytesUsed = bytesUsedForBlock(totalBytes, totalBlocks - 1, totalBlocks);
                 }
             }
 
             // imprime o bloco com cor e caracteres representando bytes usados e livres
-            printColoredBlockBar(i, file.color, bytesUsed, tamanhoBloco);
+            printColoredBlockBar(i, file.color, bytesUsed);
 
             // indica posição do bloco dentro do arquivo
             if (file.size == 1) {
@@ -215,7 +216,7 @@ void displayContiguo(const vector<int>& disk, const unordered_map<string, File>&
                 cout << " [" << file.name << "]" << endl;
             }
 
-            totalBytesLivres += (tamanhoBloco - bytesUsed); // calcula fragmentação interna
+            totalBytesLivres += (TAMANHO_BLOCO - bytesUsed); // calcula fragmentação interna
         }
     }
 
@@ -261,10 +262,10 @@ void displayEncadeado(const vector<int>& disk, const unordered_map<string, File>
         int chainSize = static_cast<int>(chain.size());
         
         for (int idx = 0; idx < chainSize; ++idx) {
-            int bytesUsed = tamanhoBloco;
+            int bytesUsed = TAMANHO_BLOCO;
             
             // calcula bytes usados no último bloco da cadeia para visualização correta e parcial do bloco
-            bytesUsed = bytesUsedForBlock(fileBytes, idx, chainSize, tamanhoBloco);
+            bytesUsed = bytesUsedForBlock(fileBytes, idx, chainSize);
             blockInfo[chain[idx]] = make_tuple(nome, idx, chainSize, bytesUsed);
         }
     }
@@ -280,7 +281,7 @@ void displayEncadeado(const vector<int>& disk, const unordered_map<string, File>
             if (disk[i] == BLOCO_LIVRE) {
                 printFreeBlock(i);
                 cout << endl;
-                totalBytesLivres += tamanhoBloco;
+                totalBytesLivres += TAMANHO_BLOCO;
             } else {
                 cout << "[" << i << "] █ → ?" << endl;
             }
@@ -291,7 +292,7 @@ void displayEncadeado(const vector<int>& disk, const unordered_map<string, File>
         const File &file = files.at(nome);
 
         // imprime bloco com cores e bytes usados/livres
-        printColoredBlockBar(i, file.color, bytesUsed, tamanhoBloco);
+        printColoredBlockBar(i, file.color, bytesUsed);
 
         int prox = disk[i]; // próximo bloco na cadeia
         
@@ -310,7 +311,7 @@ void displayEncadeado(const vector<int>& disk, const unordered_map<string, File>
                 cout << " → [" << prox << "]" << endl;
         }
 
-        totalBytesLivres += (tamanhoBloco - bytesUsed); // calcula fragmentação interna
+        totalBytesLivres += (TAMANHO_BLOCO - bytesUsed); // calcula fragmentação interna
     }
 
     printFreeBytesFooter(totalBytesLivres);
@@ -325,7 +326,7 @@ void displayIndexado(const vector<int> &disk, const unordered_map<string, File>&
     for (const auto &[nome, file] : files) {
         // registra o bloco indice
         if (file.indexBlock >= 0 && file.indexBlock < static_cast<int>(disk.size())) {
-            blockInfo[file.indexBlock] = make_tuple(nome, 1, tamanhoBloco);
+            blockInfo[file.indexBlock] = make_tuple(nome, 1, TAMANHO_BLOCO);
         }
 
         // obtém o tamanho real do arquivo em bytes
@@ -342,11 +343,11 @@ void displayIndexado(const vector<int> &disk, const unordered_map<string, File>&
             int blk = file.dataBlocks[idx];
             if (blk < 0 || blk >= static_cast<int>(disk.size()))
                 continue;
-            int bytesUsed = tamanhoBloco;
+            int bytesUsed = TAMANHO_BLOCO;
             
             if (idx == totalBlocks - 1) {
                 // último bloco - calcula bytes usados para visualização correta
-                bytesUsed = bytesUsedForBlock(fileBytes, idx, totalBlocks, tamanhoBloco);
+                bytesUsed = bytesUsedForBlock(fileBytes, idx, totalBlocks);
             }
             blockInfo[blk] = make_tuple(nome, 0, bytesUsed);
         }
@@ -363,7 +364,7 @@ void displayIndexado(const vector<int> &disk, const unordered_map<string, File>&
             if (disk[i] == BLOCO_LIVRE) {
                 printFreeBlock(i);
                 cout << endl;
-                totalBytesLivres += tamanhoBloco; 
+                totalBytesLivres += TAMANHO_BLOCO;
             } else {
                 cout << "[" << i << "] █ → ?" << endl;
             }
@@ -374,7 +375,7 @@ void displayIndexado(const vector<int> &disk, const unordered_map<string, File>&
         const File& file = files.at(nome);
 
         // imprime bloco com cores e bytes usados/livres
-        printColoredBlockBar(i, file.color, bytesUsed, tamanhoBloco);
+        printColoredBlockBar(i, file.color, bytesUsed);
         
         if (tipo == 1) { 
             // bloco índice → mostra os ponteiros para os blocos de dados
@@ -401,7 +402,7 @@ void displayIndexado(const vector<int> &disk, const unordered_map<string, File>&
             }
         }
         
-        totalBytesLivres += (tamanhoBloco - bytesUsed); // fragmentação interna
+        totalBytesLivres += (TAMANHO_BLOCO - bytesUsed); // fragmentação interna
         cout << endl;
     }
     printFreeBytesFooter(totalBytesLivres);
@@ -414,7 +415,7 @@ void criarArquivoContiguo(vector<int>& disk, unordered_map<string, File>& files,
     int tamanhoBytes;
     int tamanhoBlocos;
 
-    if (!promptCreateCommon(files, disk, tamanhoBloco, fileName, tamanhoBytes, tamanhoBlocos)) {
+    if (!promptCreateCommon(files, disk, TAMANHO_BLOCO, fileName, tamanhoBytes, tamanhoBlocos)) {
         return;
     }
 
@@ -470,7 +471,7 @@ void criarArquivoEncadeado(vector<int>& disk, unordered_map<string, File>& files
     int tamanhoBytes;
     int tamanhoBlocos;
 
-    if (!promptCreateCommon(files, disk, tamanhoBloco, fileName, tamanhoBytes, tamanhoBlocos)) {
+    if (!promptCreateCommon(files, disk, TAMANHO_BLOCO, fileName, tamanhoBytes, tamanhoBlocos)) {
         return;
     }
 
@@ -527,7 +528,7 @@ void criarArquivoIndexado(vector<int>& disk, unordered_map<string, File>& files,
     int tamanhoBytes;
     int tamanhoBlocos;
 
-    if (!promptCreateCommon(files, disk, tamanhoBloco, fileName, tamanhoBytes, tamanhoBlocos)) {
+    if (!promptCreateCommon(files, disk, TAMANHO_BLOCO, fileName, tamanhoBytes, tamanhoBlocos)) {
         return;
     }
 
@@ -659,7 +660,7 @@ void displayDiretorioContiguo(const unordered_map<string, File>& files) {
             tamanhoBytes = it->second;
         }
 
-        int fragmentacao = computeFragmentation(file.size, tamanhoBloco, tamanhoBytes);
+        int fragmentacao = computeFragmentation(file.size, tamanhoBytes);
         cout << left << setw(20) << nome << "| "
              << right << setw(15) << file.startBlock << "| "
              << right << setw(17) << file.size << "| "
@@ -690,7 +691,7 @@ void displayDiretorioEncadeado(const unordered_map<string, File>& files) {
             tamanhoBytes = it->second;
         }
 
-        int fragmentacao = computeFragmentation(file.size, tamanhoBloco, tamanhoBytes);
+        int fragmentacao = computeFragmentation(file.size, tamanhoBytes);
         cout << left << setw(20) << nome << "| "
              << right << setw(15) << file.startBlock << "| "
              << right << setw(17) << file.size << "| "
@@ -731,7 +732,7 @@ void displayDiretorioIndexado(const unordered_map<string, File>& files) {
             tamanhoBytes = it->second;
         }
 
-        int fragmentacao = computeFragmentation(file.size, tamanhoBloco, tamanhoBytes);
+        int fragmentacao = computeFragmentation(file.size, tamanhoBytes);
         cout << left << setw(20) << nome << "| "
              << right << setw(15) << file.indexBlock << "| "
              << right << setw(19) << file.size << "| "
@@ -846,7 +847,7 @@ void estenderArquivoEncadeado(vector<int>& disk,
 
     if (restanteBytes == 0) {
         // nada a alocar em novos blocos
-        file.fragmentacao = computeFragmentation((int)file.dataBlocks.size(), blockSize, fileSizesBytes[fileName]);
+        file.fragmentacao = computeFragmentation((int)file.dataBlocks.size(), fileSizesBytes[fileName]);
         tabelaDiretorio[fileName] = make_tuple(file.startBlock, (int)file.dataBlocks.size());
         cout << "Arquivo estendido com sucesso!" << endl;
         displayEncadeado(disk, filesEncadeados);
@@ -888,7 +889,7 @@ void estenderArquivoEncadeado(vector<int>& disk,
     // atualiza tamanho total e fragmentação
     fileSizesBytes[fileName] += restanteBytes;
     file.size = (int)file.dataBlocks.size();
-    file.fragmentacao = computeFragmentation(file.size, blockSize, fileSizesBytes[fileName]);
+    file.fragmentacao = computeFragmentation(file.size, fileSizesBytes[fileName]);
 
     // atualiza a tabela de diretório
     tabelaDiretorio[fileName] = make_tuple(file.startBlock, file.size);
@@ -994,7 +995,7 @@ void simularLeituraContiguo(const unordered_map<string, File>& filesContiguous,
         return;
     }
 
-    int fragmentacao = computeFragmentation(file.size, blockSize, fileSizesBytes.at(fileName));
+    int fragmentacao = computeFragmentation(file.size, fileSizesBytes.at(fileName));
 
     // tempo sequencial: percorre todos os blocos em sequência (1 passo por bloco)
     int passosSequenciais = (int)blocosArquivo.size();
@@ -1065,7 +1066,7 @@ void simularLeituraEncadeado(const vector<int>& disk,
         return;
     }
 
-    int fragmentacao = computeFragmentation(file.size, blockSize, fileSizesBytes.at(fileName));
+    int fragmentacao = computeFragmentation(file.size,  fileSizesBytes.at(fileName));
 
      // custo sequencial: blocos + saltos de ponteiro
     int passosSequenciais = (int)blocosArquivo.size() * 2 - 1; 
@@ -1138,7 +1139,7 @@ void simularLeituraIndexado(const unordered_map<string, File>& filesIndexados,
         return;
     }
 
-    int fragmentacao = computeFragmentation(file.size, blockSize, fileSizesBytes.at(fileName));
+    int fragmentacao = computeFragmentation(file.size, fileSizesBytes.at(fileName));
 
     // leitura sequencial: ler bloco de índice + percorrer todos os blocos do arquivo
     int passosSequenciais = 1 + (int)blocosArquivo.size();
@@ -1201,10 +1202,10 @@ int main() {
     } while (diskSizeBytes < 16 || diskSizeBytes > 1024);
     
     // calcula o número de blocos do disco (tamanho do bloco fixo de 8 bytes)
-    int diskSizeBlocks = (diskSizeBytes + tamanhoBloco - 1) / tamanhoBloco;
+    int diskSizeBlocks = (diskSizeBytes + TAMANHO_BLOCO - 1) / TAMANHO_BLOCO;
     
     cout << "Disco de " << diskSizeBytes << " bytes criado com " << diskSizeBlocks 
-         << "blocos de " << tamanhoBloco << " bytes.\n ";
+         << "blocos de " << TAMANHO_BLOCO << " bytes.\n ";
     
     // inicializa o disco com -1 (bloco livre)
     vector<int> disk(diskSizeBlocks, -1);
@@ -1283,19 +1284,19 @@ int main() {
                 } break;
             case 5:
                 if (tipoAlocacao == 1) {
-                    estenderArquivoContiguo(disk, filesContiguous, fileSizesBytes, tamanhoBloco, tabelaDiretorio);
+                    estenderArquivoContiguo(disk, filesContiguous, fileSizesBytes, TAMANHO_BLOCO, tabelaDiretorio);
                 } else if (tipoAlocacao == 2) {
-                    estenderArquivoEncadeado(disk, filesEncadeados, fileSizesBytes, tamanhoBloco, tabelaDiretorio); 
+                    estenderArquivoEncadeado(disk, filesEncadeados, fileSizesBytes, TAMANHO_BLOCO, tabelaDiretorio);
                 } else if (tipoAlocacao == 3) {
-                    estenderArquivoIndexado(disk, filesIndexados, fileSizesBytes, tamanhoBloco, tabelaDiretorio);
+                    estenderArquivoIndexado(disk, filesIndexados, fileSizesBytes, TAMANHO_BLOCO, tabelaDiretorio);
                 } break;
             case 6: 
                 if (tipoAlocacao == 1) {
-                    simularLeituraContiguo(filesContiguous, fileSizesBytes, tamanhoBloco);
+                    simularLeituraContiguo(filesContiguous, fileSizesBytes, TAMANHO_BLOCO);
                 } else if (tipoAlocacao == 2) {
-                    simularLeituraEncadeado(disk, filesEncadeados, fileSizesBytes, tamanhoBloco);
+                    simularLeituraEncadeado(disk, filesEncadeados, fileSizesBytes, TAMANHO_BLOCO);
                 } else if (tipoAlocacao == 3) {
-                    simularLeituraIndexado(filesIndexados, fileSizesBytes, tamanhoBloco);
+                    simularLeituraIndexado(filesIndexados, fileSizesBytes, TAMANHO_BLOCO);
                 } break;
             case 7:
                 cout << "Encerrando o programa..." << endl;
