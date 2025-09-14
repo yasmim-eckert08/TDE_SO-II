@@ -1140,12 +1140,12 @@ int main() {
     int diskSizeBlocks = (diskSizeBytes + TAMANHO_BLOCO - 1) / TAMANHO_BLOCO;
     
     cout << "Disco de " << diskSizeBytes << " bytes criado com " << diskSizeBlocks 
-         << "blocos de " << TAMANHO_BLOCO << " bytes.\n ";
+         << " blocos de " << TAMANHO_BLOCO << " bytes. ";
     
     // inicializa o disco com -1 (bloco livre)
     vector<int> disk(diskSizeBlocks, -1);
     
-    cout << "Estado inicial do disco:" << endl;
+    cout << "\nEstado inicial do disco:" << endl;
     for (int i = 0; i < diskSizeBlocks; ++i) {
         cout << "[" << i << "] ░" << endl;
     }
