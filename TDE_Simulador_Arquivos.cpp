@@ -7,20 +7,17 @@
 #include <random>
 using namespace std;
 
-
-
 struct File;
-
 
 constexpr int BLOCO_LIVRE = -1;
 constexpr int FIM_CADEIA = -2;
 constexpr int TAMANHO_BLOCO = 8;
 
- int computeFragmentation(int blocks, int fileBytes) {
+int computeFragmentation(int blocks, int fileBytes) {
     return blocks * TAMANHO_BLOCO - fileBytes;
 }
 
- int bytesUsedForBlock(int fileBytes, int idx, int totalBlocks) {
+int bytesUsedForBlock(int fileBytes, int idx, int totalBlocks) {
     int bytesUsed = TAMANHO_BLOCO;
     if (idx == totalBlocks - 1) {
         int bytesBefore = (totalBlocks - 1) * TAMANHO_BLOCO;
@@ -31,25 +28,25 @@ constexpr int TAMANHO_BLOCO = 8;
     return bytesUsed;
 }
 
- void printColoredBlockBar(size_t blockIdx, const string& color, int bytesUsed) {
+void printColoredBlockBar(size_t blockIdx, const string& color, int bytesUsed) {
     cout << "[" << blockIdx << "] " << color;
     for (int b = 0; b < bytesUsed; ++b) cout << "█";
     for (int b = bytesUsed; b < TAMANHO_BLOCO; ++b) cout << "░";
     cout << "\033[0m"; // reset cor
 }
 
- void printFreeBlock(size_t blockIdx) {
+void printFreeBlock(size_t blockIdx) {
     cout << "[" << blockIdx << "] ░";
 }
 
- vector<int> collectFreeBlocks(const vector<int>& disk) {
+vector<int> collectFreeBlocks(const vector<int>& disk) {
     vector<int> freeBlocks;
     freeBlocks.reserve(disk.size());
     for (size_t i = 0; i < disk.size(); ++i) if (disk[i] == BLOCO_LIVRE) freeBlocks.push_back((int)i);
     return freeBlocks;
 }
 
- void shuffleInPlace(vector<int>& v) {
+void shuffleInPlace(vector<int>& v) {
     random_device rd; mt19937 g(rd());
     shuffle(v.begin(), v.end(), g);
 }
@@ -67,21 +64,18 @@ void printFreeBytesFooter(int totalBytes) {
     cout << "Total de bytes livres no disco: " << totalBytes << " bytes" << "\n";
 }
 
-
-
 struct File {
     int indexBlock = -1;
     int startBlock = -1;
     vector<int> dataBlocks;
     int size = 0;            // em blocos
-    int sizeBytes = 0;       // novo: tamanho real em bytes
+    int sizeBytes = 0;       // tamanho real em bytes
     string name;
     string color;
     int fragmentacao = 0;
 };
 
-
- bool promptCreateCommon(
+bool promptCreateCommon(
     const unordered_map<string, File>& files,
     const vector<int>& disk,
     string& fileNameOut,
@@ -111,12 +105,10 @@ struct File {
     return true;
 }
 
-
-
-template <typename Map>
+template <typename Map> 
  bool promptExtendCommon(const Map& files,
-                               string& fileNameOut,
-                               int& adicionalBytesOut)
+                              string& fileNameOut,
+                              int& adicionalBytesOut)
 {
     cout << "Digite o nome do arquivo a ser estendido: ";
     cin >> fileNameOut;
@@ -792,11 +784,12 @@ void estenderArquivoEncadeado(vector<int>& disk,
     // referência ao arquivo
     File& file = filesEncadeados[fileName];
     auto consumo = consumeLastBlockSpace(file.sizeBytes, TAMANHO_BLOCO, adicionalBytes);
-    file.sizeBytes += adicionalBytes;
+    // file.sizeBytes += adicionalBytes; // bug somando duplicado
     int restanteBytes = consumo.second;
 
     if (restanteBytes == 0) {
         // nada a alocar em novos blocos
+        file.sizeBytes += adicionalBytes; 
         file.fragmentacao = computeFragmentation((int)file.dataBlocks.size(), file.sizeBytes);
         tabelaDiretorio[fileName] = make_tuple(file.startBlock, (int)file.dataBlocks.size());
         cout << "Arquivo estendido com sucesso!" << endl;
@@ -837,7 +830,7 @@ void estenderArquivoEncadeado(vector<int>& disk,
     }
 
     // atualiza tamanho total e fragmentação
-    file.sizeBytes += restanteBytes;
+    file.sizeBytes += adicionalBytes;
     file.size = (int)file.dataBlocks.size();
     file.fragmentacao = computeFragmentation(file.size, file.sizeBytes);
 
@@ -1246,6 +1239,5 @@ int main() {
             default:
                 cout << "Opção inválida! Digite um número entre 1 e 7.\n" << endl;
         }
-    }
-    
+    }   
 }
