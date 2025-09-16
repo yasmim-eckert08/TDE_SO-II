@@ -784,7 +784,6 @@ void estenderArquivoEncadeado(vector<int>& disk,
     // referência ao arquivo
     File& file = filesEncadeados[fileName];
     auto consumo = consumeLastBlockSpace(file.sizeBytes, TAMANHO_BLOCO, adicionalBytes);
-    // file.sizeBytes += adicionalBytes; // bug somando duplicado
     int restanteBytes = consumo.second;
 
     if (restanteBytes == 0) {
